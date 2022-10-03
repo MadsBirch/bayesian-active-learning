@@ -101,8 +101,41 @@ def entropy_query(model, device, data_loader, query_size = 10):
     
     return ind[sorted_pool][-query_size:] 
     #return indices, e_scores
+    
+    
+def BALD_query(model, device, data_loader, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
 
-def query_the_oracle(model, dataset, device, query_size = 10, query_strategy = 'random', batch_size = 256):
+    # get appox
+    model.train()
+    
+    indices = []
+    if method == 'MC_drop':
+        logits = torch.zeros((len(data_loader)*batch_size,2,T))
+        for t in range(T):
+            for i, batch in enumerate(data_loader):
+                X, y, idx = batch
+                logit = model(X.to(device))
+                logits[i*len(y):i*len(y)+len(y),:,t] = logit
+                
+                indices.extend(idx.tolist())
+
+
+        first_term = -1.0 * torch.sum(F.softmax((1/T)*torch.sum(logits, dim = 2), dim=1) * F.log_softmax((1/T)*torch.sum(logits, dim = 2), dim=1), dim=1)
+        second_term = (1/T)*torch.sum(torch.sum(F.softmax(logits, dim = 1)*F.log_softmax(logits, dim=1), dim = 2),dim = 1)
+
+        BALD_scores = first_term+second_term
+            
+    if method == 'Laplace':
+        print('Not implemented yet!')
+        
+        
+    conf = np.asarray(BALD_scores.cpu().tolist())
+    ind = np.asarray(indices)
+    sorted_pool = np.argsort(conf)
+        
+    return ind[sorted_pool][0:query_size]
+
+def query_the_oracle(model, dataset, device, T = 30, query_size = 10, query_strategy = 'random', batch_size = 256):
     
     unlabeled_idx = np.nonzero(dataset.unlabeled_mask)[0]
     
@@ -122,11 +155,8 @@ def query_the_oracle(model, dataset, device, query_size = 10, query_strategy = '
         sample_idx = entropy_query(model, device, pool_loader, query_size=query_size)
         
     elif query_strategy == 'bald':
-        sample_idx = BALD_query(model, device, pool_loader, query_size = query_size)
+        sample_idx = BALD_query(model, device, pool_loader, query_size = query_size, T = T, batch_size = batch_size)
         
-    else: 
-        print('Query strategy not defined!')
-    
     return sample_idx
     
 
