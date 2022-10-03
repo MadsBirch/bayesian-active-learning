@@ -1,0 +1,128 @@
+from tokenize import PlainToken
+import numpy as np
+import matplotlib.pyplot as plt
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+
+def train(model, trainloader, optimizer, device, num_epochs = 100, plot = True, printout = True):
+    
+    model.to(device)
+    
+    # optimizer
+    loss_fn = nn.CrossEntropyLoss()
+    #optimizer = optim.SGD(model.parameters(), momentum = 0.7, lr=lr)
+    #optimizer = optim.Adam(model.parameters(), lr = lr)
+    
+    ### Training loop ###
+    TRAIN_LOSS, TRAIN_ACC = [], []
+    VAL_LOSS, VAL_ACC = [], []
+
+    model.train()
+
+    for epoch in range(num_epochs):
+        train_loss = 0
+        train_correct = 0
+        train_total = 0
+        for X_train, y_train, idx in trainloader:
+            # Get data to device if possible
+            X_train = X_train.to(device)
+            y_train = y_train.to(device)
+            
+            # forward
+            output = model(X_train)
+            loss = loss_fn(output, y_train)
+            train_loss += loss.item()
+
+            # backward
+            optimizer.zero_grad()
+            loss.backward()
+
+            # gradient descent or adam step
+            optimizer.step()
+            
+            preds = torch.argmax(F.softmax(output, dim = 1),dim=1)
+            train_correct += (preds == y_train).sum().item()
+            train_total += y_train.size(0)
+        
+        train_loss_epoch = train_loss/len(trainloader)
+        train_acc_epoch = (train_correct/train_total)*100
+        
+        TRAIN_LOSS.append(train_loss_epoch)
+        TRAIN_ACC.append(train_acc_epoch)
+        
+        val_total = 0
+        val_loss = 0
+        val_correct = 0
+        
+        #if val:
+         #   with torch.no_grad():
+          #      for X_val, y_val, idx in valloader:
+           #         X_val, y_val = X_val.to(device), y_val.to(device)
+            #        output = model(X_val)
+             #       loss = loss_fn(output, y_val)
+              #      val_loss += loss.item()  # sum up batch loss
+    #
+     #               preds = torch.argmax(F.softmax(output, dim = 1),dim=1)
+      #              val_correct += (preds == y_val).sum().item()
+       #             val_total += y_val.size(0)
+
+        #    val_loss_epoch = train_loss/len(valloader)
+         #   val_acc_epoch = (val_correct/val_total)*100
+            
+          #  VAL_LOSS.append(val_loss_epoch)
+           # VAL_ACC.append(val_acc_epoch)
+        
+            #print(f'Epoch: {epoch:3d} | Train/Val Loss: {train_loss_epoch:.2f} / {val_loss_epoch:.2f} | Train/Val Acc: {train_acc_epoch:.1f}% / {val_acc_epoch:.1f}%')
+        
+        if printout:
+            print(f'Epoch: {epoch:3d} | Train Loss: {train_loss_epoch:.2f} | Train Acc: {train_acc_epoch:.1f}%')
+
+    if plot:  
+        fig, (ax1, ax2) = plt.subplots(1,2, sharex = 'col', figsize=(8,4))
+        ax1.plot(TRAIN_LOSS, label = 'train')
+        #ax1.plot(VAL_LOSS, label = 'val')
+        ax1.legend()
+        ax1.set_title('LOSS')
+
+        ax2.plot(TRAIN_ACC, label = 'train')
+        #ax2.plot(VAL_ACC, label = 'val')
+        ax2.legend()
+        ax2.set_title('ACCURACY')
+        fig.tight_layout()    
+        plt.show()
+    
+    return model
+    
+    
+
+def test(model, testloader, device, display=True):
+    model.eval()
+    
+    test_loss = 0
+    n_correct = 0
+    total = 0
+    
+    loss_fn = nn.CrossEntropyLoss()
+    
+    TEST_ACC = []
+    with torch.no_grad():
+        for X, y, idx in testloader:
+            
+            X, y= X.to(device), y.to(device)
+            out = model(X)
+            
+            test_loss += loss_fn(out.squeeze(), y.squeeze()).item()  # sum up batch loss
+            preds = torch.argmax(F.softmax(out, dim = 1),dim=1)
+            n_correct += (preds == y).sum().item()
+            total += y.size(0)
+
+    loss = test_loss/len(testloader)
+    acc = (n_correct/total)*100
+    
+    if display:
+        print(f'Accuracy on the test set: {acc:.1f} %')
+    
+    return acc
