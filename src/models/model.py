@@ -5,16 +5,16 @@ import torch.nn.functional as F
 
 class MLP(nn.Module):
   '''
-    Multilayer Perceptron for regression.
+    Multilayer Perceptron for classification.
   '''
-  def __init__(self):
+  def __init__(self, drop_out = float):
     super().__init__()
     self.layers = nn.Sequential(
       nn.Linear(2, 100),
-      nn.Dropout(0.5),
+      nn.Dropout(drop_out),
       nn.ReLU(),
       nn.Linear(100, 100),
-      nn.Dropout(0.5),
+      nn.Dropout(drop_out),
       nn.ReLU(),
       nn.Linear(100, 2)
       #nn.Softmax(dim = 0)

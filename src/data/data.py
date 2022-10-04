@@ -8,17 +8,20 @@ from torchvision import datasets
 
 
 class TwoMoons(Dataset):
-    def __init__(self, moons_data):
+    def __init__(self, moons_data, return_idx = True):
         X, y = moons_data
         self.X, self.y = torch.tensor(X, dtype = torch.float), torch.tensor(y, dtype = torch.long)
         self.unlabeled_mask = np.ones(len(self.y))
+        self.return_idx = return_idx
             
     def __len__(self):
-
         return len(self.y)
     
-    def __getitem__(self, idx):        
-        return self.X[idx,:], self.y[idx], idx
+    def __getitem__(self, idx):
+        if self.return_idx == True:        
+            return self.X[idx,:], self.y[idx], idx
+        else:
+            return self.X[idx,:], self.y[idx]
     
     def update_mask(self, idx):
         self.unlabeled_mask[idx] = 0
@@ -39,12 +42,13 @@ class CIFAR10_CUSTOM(datasets.CIFAR10):
         self.unlabeled_mask = np.ones((len(self.unlabeled_mask)))
         
     
-def get_dataloaders(moons_data, 
+def get_dataloaders(moons_data,
                     batch_size = 256,
                     val_split = 0.2,
+                    return_idx = True
                     ):
     # load in data
-    data = TwoMoons(moons_data)
+    data = TwoMoons(moons_data, return_idx = return_idx)
     
     # split into train and validation
     data_lengths = [int(len(data)*(1-val_split)), int(len(data)*val_split)]
