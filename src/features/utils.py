@@ -101,8 +101,8 @@ def entropy_query(model, device, data_loader, query_size = 10):
     
     return ind[sorted_pool][-query_size:] 
     #return indices, e_scores
-    
-    
+
+
 def BALD_query(model, device, data_loader, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
 
     # get appox
@@ -117,22 +117,24 @@ def BALD_query(model, device, data_loader, batch_size, query_size = 10, T = 30, 
                 logit = model(X.to(device))
                 logits[i*len(y):i*len(y)+len(y),:,t] = logit
                 
+                #if t == 0:
                 indices.extend(idx.tolist())
 
-
-        first_term = -1.0 * torch.sum(F.softmax((1/T)*torch.sum(logits, dim = 2), dim=1) * F.log_softmax((1/T)*torch.sum(logits, dim = 2), dim=1), dim=1)
-        second_term = (1/T)*torch.sum(torch.sum(F.softmax(logits, dim = 1)*F.log_softmax(logits, dim=1), dim = 2),dim = 1)
-
-        BALD_scores = first_term+second_term
+        p_hat = F.softmax(logits, dim = 1)
+        p_hat_mean_T = p_hat.mean(2)
+        
+        first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
+        second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
+        
+        BALD_scores = first_term-second_term
             
     if method == 'Laplace':
         print('Not implemented yet!')
         
-        
-    conf = np.asarray(BALD_scores.cpu().tolist())
+    scores = np.asarray(BALD_scores.cpu().tolist())
     ind = np.asarray(indices)
-    sorted_pool = np.argsort(conf)
-        
+    sorted_pool = np.argsort(scores)
+    
     return ind[sorted_pool][0:query_size]
 
 def query_the_oracle(model, dataset, device, T = 30, query_size = 10, query_strategy = 'random', batch_size = 256):
@@ -214,3 +216,5 @@ def get_entropy_grid(model, moons_data):
     entropy_out = entropy_out.detach().numpy().reshape(xx.shape)
     
     return X, y, xx, yy, entropy_out
+
+
