@@ -8,8 +8,7 @@ from torchvision import datasets
 
 
 class TwoMoons(Dataset):
-    def __init__(self, moons_data, return_idx = True):
-        X, y = moons_data
+    def __init__(self, X, y, return_idx = True):
         self.X, self.y = torch.tensor(X, dtype = torch.float), torch.tensor(y, dtype = torch.long)
         self.unlabeled_mask = np.ones(len(self.y))
         self.return_idx = return_idx
@@ -18,7 +17,7 @@ class TwoMoons(Dataset):
         return len(self.y)
     
     def __getitem__(self, idx):
-        if self.return_idx == True:        
+        if self.return_idx:        
             return self.X[idx,:], self.y[idx], idx
         else:
             return self.X[idx,:], self.y[idx]
@@ -42,25 +41,11 @@ class CIFAR10_CUSTOM(datasets.CIFAR10):
         self.unlabeled_mask = np.ones((len(self.unlabeled_mask)))
         
     
-def get_dataloaders(moons_data,
-                    batch_size = 256,
-                    val_split = 0.2,
-                    return_idx = True
+def get_dataloaders(traindata, testdata,
+                    batch_size = 256
                     ):
-    # load in data
-    data = TwoMoons(moons_data, return_idx = return_idx)
-    
-    # split into train and validation
-    data_lengths = [int(len(data)*(1-val_split)), int(len(data)*val_split)]
-    traindata, testdata = random_split(data, data_lengths)
-    
-    # split validation into val and test
-    #val_lengths= [int(len(valdata)*(1-val_split)), int(len(valdata)*(val_split))]
-    #valdata, testdata = random_split(valdata, val_lengths)
-    
-    
+        
     trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=True, num_workers=0)
     testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
-    #testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
     
     return trainloader, testloader

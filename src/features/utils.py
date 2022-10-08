@@ -9,20 +9,20 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.datasets import make_moons
 
+import random
+
+torch.manual_seed(0)
+np.random.seed(0)
+random.seed(0)
+
 def random_query(data_loader, query_size=10):
     
     sample_idx = []
     
-    # Because the data has already been shuffled inside the data loader,
-    # we can simply return the `query_size` first samples from it
     for X, y, idx in data_loader:
-        
         sample_idx.extend(idx.tolist())
-
-        if len(sample_idx) >= query_size:
-            break
         
-        
+    random.shuffle(sample_idx)
     return sample_idx[0:query_size]
 
 
@@ -88,18 +88,19 @@ def entropy_query(model, device, data_loader, query_size = 10):
     model.eval()
     with torch.no_grad():
         for batch in data_loader:
-            data, _, idx = batch
-            logits = model(data.to(device))
+            X, y, idx = batch
+            logits = model(X.to(device))
             
-            e = -1.0 * torch.sum(F.softmax(logits, dim=1) * F.log_softmax(logits, dim=1), dim=1)
+            p_hat = F.softmax(logits, dim=1)
+            e = (-1.0*p_hat * torch.log(p_hat)).sum(1)
             e_scores.extend(e.cpu().tolist())
             indices.extend(idx.tolist())
 
     conf = np.asarray(e_scores)
     ind = np.asarray(indices)
-    sorted_pool = np.argsort(conf)
+    sorted_pool = np.argsort(-1*conf)
     
-    return ind[sorted_pool][-query_size:] 
+    return ind[sorted_pool][:query_size] 
     #return indices, e_scores
 
 
@@ -109,17 +110,18 @@ def BALD_query(model, device, data_loader, batch_size, query_size = 10, T = 30, 
     model.train()
     
     indices = []
+    
     if method == 'MC_drop':
-        logits = torch.zeros((len(data_loader)*batch_size,2,T))
+        
+        # logits is of dim n*c*T
+        logits = torch.zeros((800,2,T))
         for t in range(T):
             for i, batch in enumerate(data_loader):
                 X, y, idx = batch
                 logit = model(X.to(device))
                 logits[i*len(y):i*len(y)+len(y),:,t] = logit
-                
-                #if t == 0:
                 indices.extend(idx.tolist())
-
+        
         p_hat = F.softmax(logits, dim = 1)
         p_hat_mean_T = p_hat.mean(2)
         
@@ -128,16 +130,12 @@ def BALD_query(model, device, data_loader, batch_size, query_size = 10, T = 30, 
         
         BALD_scores = first_term-second_term
             
-    if method == 'Laplace':
-        print('Not implemented yet!')
-        
     scores = np.asarray(BALD_scores.cpu().tolist())
-    ind = np.asarray(indices)
-    sorted_pool = np.argsort(scores)
-    
-    return ind[sorted_pool][0:query_size]
+    ind = np.asarray(np.unique(indices))    
+    sorted_pool = np.argsort(-1*scores)
+    return sorted_pool[:query_size]
 
-def query_the_oracle(model, dataset, device, T = 30, query_size = 10, query_strategy = 'random', batch_size = 256):
+def query_the_oracle(model, dataset, device, T = 30, query_size = 10, query_strategy = 'random', batch_size = 100):
     
     unlabeled_idx = np.nonzero(dataset.unlabeled_mask)[0]
     
@@ -184,8 +182,7 @@ def plot_decision_bound(model, moons_data):
     plt.show()
     return
 
-def get_softmax_grid(model, moons_data):
-    X, y = moons_data
+def softmax_grid(model, X, y):
     x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
     x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
     
@@ -201,8 +198,7 @@ def get_softmax_grid(model, moons_data):
     return X, y, xx, yy, softmax_out
 
 
-def get_entropy_grid(model, moons_data):
-    X, y = moons_data
+def entropy_grid(model, X, y, T = int):
     x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
     x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
     
@@ -218,3 +214,28 @@ def get_entropy_grid(model, moons_data):
     return X, y, xx, yy, entropy_out
 
 
+def BALD_grid(model, X, y, T = 100):
+
+    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
+    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
+    
+    xx, yy = np.meshgrid(x1, x2)
+    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
+    
+    model.train()
+    
+    # BALD
+    logits = torch.zeros((len(x_grid),2,T))
+    for t in range(T):
+        logits[:,:,t] = model(torch.tensor(x_grid).float())
+
+    p_hat = F.softmax(logits, dim = 1)
+    p_hat_mean_T = p_hat.mean(2)
+    
+    first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
+    second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
+    
+    BALD_scores = first_term-second_term
+    BALD_out = BALD_scores.detach().numpy().reshape(xx.shape)
+    
+    return X, y, xx, yy, BALD_out
