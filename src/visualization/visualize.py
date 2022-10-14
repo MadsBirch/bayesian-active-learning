@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split, SubsetRandomSampler
 
 from src.models.train_model import train, test
-from src.features.utils import random_query, query_the_oracle, plot_decision_bound, softmax_grid, entropy_grid, BALD_grid
+from src.features.utils import random_query, query_the_oracle, plot_decision_bound, softmax_grid, entropy_grid, BALD_grid, var_grid, BALD_1_grid, BALD_2_grid
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -33,7 +33,8 @@ def plot_acquisition_output(model,
                             num_queries = 6, 
                             query_size = 3, 
                             lr = 1e-4,
-                            T = 100, 
+                            train_T = 100,
+                            plot_T = 30,
                             save_name = str):    
     # figure init
     fig, axs = plt.subplots(nrows=1, ncols=num_queries+1, figsize=(12, 2),sharex=True, sharey=True)
@@ -53,7 +54,7 @@ def plot_acquisition_output(model,
     model = train(model, labeled_loader, optimizer, device, num_epochs=num_epochs, plot = False, printout = False)
 
     # plot initial 10 data points, first col in plot
-    X, y, xx, yy, grid_out = grid_function(model, X_train, y_train)
+    X, y, xx, yy, grid_out = grid_function(model, X_train, y_train, T = plot_T)
 
     mesh = axs[0].pcolormesh(xx, yy, grid_out, cmap=plt.cm.RdBu_r, alpha = mesh_alpha)
     axs[0].scatter(X[init_pool_idx,0], X[init_pool_idx,1], c = y[init_pool_idx], s=20)
@@ -66,7 +67,7 @@ def plot_acquisition_output(model,
     for i, query in enumerate(range(num_queries)):
         # quering data points
         
-        sample_idx = query_the_oracle(model, traindata, device, query_strategy=strategy, query_size=query_size)
+        sample_idx = query_the_oracle(model, traindata, device, query_strategy=strategy, T=train_T, query_size=query_size)
         traindata.update_mask(sample_idx)
         labeled_idx = np.where(traindata.unlabeled_mask == 0)[0]
         labeled_idx_list.extend(sample_idx)
@@ -81,7 +82,7 @@ def plot_acquisition_output(model,
         model = train(model, labeled_loader, optimizer, device, num_epochs=num_epochs, plot = False, printout = False)
         
         # plot grid and scatter for the rest of the cols.
-        X, y, xx, yy, grid_out = grid_function(model, X_train, y_train)
+        X, y, xx, yy, grid_out = grid_function(model, X_train, y_train, T = plot_T)
 
         mesh = axs[i+1].pcolormesh(xx, yy, grid_out, cmap=plt.cm.RdBu_r, alpha = mesh_alpha)
         axs[i+1].scatter(X[plot_idx,0], X[plot_idx,1], c = y[plot_idx], s = 20)

@@ -214,7 +214,7 @@ def entropy_grid(model, X, y, T = int):
     return X, y, xx, yy, entropy_out
 
 
-def BALD_grid(model, X, y, T = 100):
+def BALD_grid(model, X, y, T = 20):
 
     x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
     x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
@@ -235,7 +235,76 @@ def BALD_grid(model, X, y, T = 100):
     first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
     second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
     
-    BALD_scores = first_term-second_term
+    BALD_scores = first_term-second_term    
     BALD_out = BALD_scores.detach().numpy().reshape(xx.shape)
     
     return X, y, xx, yy, BALD_out
+
+
+def var_grid(model, X, y, T = 100):
+
+    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
+    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
+    
+    xx, yy = np.meshgrid(x1, x2)
+    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
+    
+    model.train()
+    
+    # BALD
+    logits = torch.zeros((len(x_grid),2,T))
+    for t in range(T):
+        logits[:,:,t] = model(torch.tensor(x_grid).float())
+
+    var = logits[:,0,:].var(1)
+    var = var.detach().numpy().reshape(xx.shape)
+    
+    return X, y, xx, yy, var
+
+
+def BALD_1_grid(model, X, y, T = 20):
+
+    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
+    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
+    
+    xx, yy = np.meshgrid(x1, x2)
+    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
+    
+    model.train()
+    
+    # BALD
+    logits = torch.zeros((len(x_grid),2,T))
+    for t in range(T):
+        logits[:,:,t] = model(torch.tensor(x_grid).float())
+
+    p_hat = F.softmax(logits, dim = 1)
+    p_hat_mean_T = p_hat.mean(2)
+    
+    first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)  
+    first_term = first_term.detach().numpy().reshape(xx.shape)
+    
+    return X, y, xx, yy, first_term
+
+
+def BALD_2_grid(model, X, y, T = 20):
+
+    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
+    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
+    
+    xx, yy = np.meshgrid(x1, x2)
+    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
+    
+    model.train()
+    
+    # BALD
+    logits = torch.zeros((len(x_grid),2,T))
+    for t in range(T):
+        logits[:,:,t] = model(torch.tensor(x_grid).float())
+
+    p_hat = F.softmax(logits, dim = 1)
+    p_hat_mean_T = p_hat.mean(2)
+    
+    second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
+    second_term = second_term.detach().numpy().reshape(xx.shape)
+    
+    return X, y, xx, yy, second_term
