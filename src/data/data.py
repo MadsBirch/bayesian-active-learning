@@ -45,7 +45,7 @@ def get_dataloaders(traindata, testdata,
                     batch_size = 256
                     ):
         
-    trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=True, num_workers=0)
+    trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=False, num_workers=0)
     testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
     
     return trainloader, testloader

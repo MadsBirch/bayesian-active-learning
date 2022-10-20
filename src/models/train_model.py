@@ -7,14 +7,12 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-def train(model, trainloader, optimizer, device, num_epochs = 100, plot = True, printout = True):
+def train(model, dataloader, optimizer, device, num_epochs = 100, plot = True, printout = True):
     
     model.to(device)
     
-    # optimizer
+    # loss
     loss_fn = nn.CrossEntropyLoss()
-    #optimizer = optim.SGD(model.parameters(), momentum = 0.7, lr=lr)
-    #optimizer = optim.Adam(model.parameters(), lr = lr)
     
     ### Training loop ###
     TRAIN_LOSS, TRAIN_ACC = [], []
@@ -26,14 +24,14 @@ def train(model, trainloader, optimizer, device, num_epochs = 100, plot = True, 
         train_loss = 0
         train_correct = 0
         train_total = 0
-        for X_train, y_train, idx in trainloader:
+        for X, y, idx in dataloader:
             # Get data to device if possible
-            X_train = X_train.to(device)
-            y_train = y_train.to(device)
+            X = X.to(device)
+            y = y.to(device)
             
             # forward
-            output = model(X_train)
-            loss = loss_fn(output, y_train)
+            output = model(X)
+            loss = loss_fn(output, y)
             train_loss += loss.item()
 
             # backward
@@ -44,10 +42,10 @@ def train(model, trainloader, optimizer, device, num_epochs = 100, plot = True, 
             optimizer.step()
             
             preds = torch.argmax(F.softmax(output, dim = 1),dim=1)
-            train_correct += (preds == y_train).sum().item()
-            train_total += y_train.size(0)
+            train_correct += (preds == y).sum().item()
+            train_total += y.size(0)
         
-        train_loss_epoch = train_loss/len(trainloader)
+        train_loss_epoch = train_loss/len(dataloader)
         train_acc_epoch = (train_correct/train_total)*100
         
         TRAIN_LOSS.append(train_loss_epoch)

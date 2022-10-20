@@ -11,6 +11,8 @@ from sklearn.datasets import make_moons
 
 import random
 
+from src.models.train_model import train
+
 torch.manual_seed(0)
 np.random.seed(0)
 random.seed(0)
@@ -104,60 +106,116 @@ def entropy_query(model, device, data_loader, query_size = 10):
     #return indices, e_scores
 
 
-def BALD_query(model, device, data_loader, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
+def BALD_query(model, device, data_loader, data_len, X, y, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
 
-    # get appox
-    model.train()
+    x1 = np.linspace(X[:,0].min(), X[:,0].max(), 200)
+    x2 = np.linspace(X[:,1].min(), X[:,1].max(), 200)
     
+    xx, yy = np.meshgrid(x1, x2)
+    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
+
+    logits_list = []
     indices = []
+    Xs = []
+    
+    # logits is of dim n*c*T
+    logits = torch.zeros((data_len,2,T))
+    logits_grid = torch.zeros((len(x_grid),2,T))
     
     if method == 'MC_drop':
-        
-        # logits is of dim n*c*T
-        logits = torch.zeros((800,2,T))
+        model.train()
         for t in range(T):
             for i, batch in enumerate(data_loader):
                 X, y, idx = batch
                 logit = model(X.to(device))
-                logits[i*len(y):i*len(y)+len(y),:,t] = logit
-                indices.extend(idx.tolist())
+                logits[i*len(y):i*len(y)+len(y),:,t] = logit    
+                logits_grid[:,:,t] = model(torch.tensor(x_grid).float())
+                
+                if t == 0:
+                    indices.extend(idx.tolist())
+                    Xs.extend(X.tolist())
+                                  
+    
+    if method == 'ensemble':
         
-        p_hat = F.softmax(logits, dim = 1)
-        p_hat_mean_T = p_hat.mean(2)
-        
-        first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
-        second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
-        
-        BALD_scores = first_term-second_term
+        lr = 6e-4
+        for t in range(T):
             
-    scores = np.asarray(BALD_scores.cpu().tolist())
-    ind = np.asarray(np.unique(indices))    
-    sorted_pool = np.argsort(-1*scores)
-    return sorted_pool[:query_size]
+            optimizer = optim.Adam(model.parameters(), lr = lr)
+            model = train(model, data_loader, optimizer, device, num_epochs = 1000, plot = False, printout = False)
+            model.eval()
+            with torch.no_grad():
+                for i, batch in enumerate(data_loader):
+                    X, y, idx = batch
+                    logit = model(X.to(device))
+                    logits[i*len(y):i*len(y)+len(y),:,t] = logit
+                    logits_grid[:,:,t] = model(torch.tensor(x_grid).float())
+                    
+                    if t == 0:
+                        indices.extend(idx.tolist())
+                        Xs.extend(X.tolist())
+    
+    # grid calc        
+    var_grid = logits_grid.var(2).sum(1)
+    var_grid = var_grid.detach().numpy().reshape(xx.shape)
 
-def query_the_oracle(model, dataset, device, T = 30, query_size = 10, query_strategy = 'random', batch_size = 100):
+    p_hat_grid = F.softmax(logits_grid, dim = 1)
+    p_hat_mean_T_grid = p_hat_grid.mean(2)
+    
+    first_term_grid = (-p_hat_mean_T_grid*torch.log(p_hat_mean_T_grid)).sum(1)
+    second_term_grid = (-p_hat_grid*torch.log(p_hat_grid)).sum(1).mean(1)
+    
+    BALD_scores_grid = first_term_grid-second_term_grid
+    BALD_out_grid = BALD_scores_grid.detach().numpy().reshape(xx.shape)
+    
+    first_term_grid = first_term_grid.detach().numpy().reshape(xx.shape)
+    second_term_grid = second_term_grid.detach().numpy().reshape(xx.shape)
+    
+    grids_list = [BALD_out_grid, var_grid, first_term_grid, second_term_grid]
+
+    
+    # data
+    p_hat = F.softmax(logits, dim = 1)
+    p_hat_mean_T= p_hat.mean(2)
+    
+    first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
+    second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
+    BALD_scores = first_term - second_term
+    
+    return BALD_scores.sort()[1][-query_size:], xx, yy, grids_list
+
+def query_the_oracle(model, dataset, device, 
+                     T = 30,
+                     query_size = 10, 
+                     query_strategy = 'random', 
+                     bald_method = 'MC_drop', 
+                     batch_size = 100):
     
     unlabeled_idx = np.nonzero(dataset.unlabeled_mask)[0]
+    data_len = len(unlabeled_idx)
     
     pool_loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, 
                                 sampler=SubsetRandomSampler(unlabeled_idx), shuffle=False)
     
     if query_strategy == 'random':
         sample_idx = random_query(pool_loader, query_size=query_size)
+        return sample_idx
         
     elif query_strategy == 'margin':
         sample_idx = margin_query(model, device, pool_loader, query_size=query_size)
+        return sample_idx
         
     elif query_strategy == 'least_conf':
         sample_idx = least_confidence_query(model, device, pool_loader, query_size=query_size)
+        return sample_idx
         
     elif query_strategy == 'entropy':
         sample_idx = entropy_query(model, device, pool_loader, query_size=query_size)
+        return sample_idx
         
     elif query_strategy == 'bald':
-        sample_idx = BALD_query(model, device, pool_loader, query_size = query_size, T = T, batch_size = batch_size)
-        
-    return sample_idx
+        sample_idx, scores, sorted_pool, Xs = BALD_query(model, device, pool_loader, data_len, query_size = query_size, T = T, batch_size = batch_size, method = bald_method)
+        return sample_idx, scores, sorted_pool, Xs
     
 
 def plot_decision_bound(model, moons_data):
@@ -195,7 +253,7 @@ def softmax_grid(model, X, y):
     softmax_out = F.softmax(model(torch.tensor(x_grid).float()), dim = 1)
     softmax_out = softmax_out.detach().numpy()[:,1].reshape(xx.shape)
 
-    return X, y, xx, yy, softmax_out
+    return xx, yy, softmax_out
 
 
 def entropy_grid(model, X, y, T = int):
@@ -208,10 +266,10 @@ def entropy_grid(model, X, y, T = int):
     model.eval()
     
     logits = model(torch.tensor(x_grid).float())
-    entropy_out = e = -1.0 * torch.sum(F.softmax(logits, dim=1) * F.log_softmax(logits, dim=1), dim=1)
+    entropy_out = -1.0 * torch.sum(F.softmax(logits, dim=1) * F.log_softmax(logits, dim=1), dim=1)
     entropy_out = entropy_out.detach().numpy().reshape(xx.shape)
     
-    return X, y, xx, yy, entropy_out
+    return xx, yy, entropy_out
 
 
 def BALD_grid(model, X, y, T = 20):
@@ -238,73 +296,43 @@ def BALD_grid(model, X, y, T = 20):
     BALD_scores = first_term-second_term    
     BALD_out = BALD_scores.detach().numpy().reshape(xx.shape)
     
-    return X, y, xx, yy, BALD_out
+    return xx, yy, BALD_out
 
 
-def var_grid(model, X, y, T = 100):
 
-    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
-    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
+## implement method
+def BALD_grid_viz(model, X, y, T = 20, method = 'MC_drop'):
+
+    x1 = np.linspace(X[:,0].min(), X[:,0].max(), 200)
+    x2 = np.linspace(X[:,1].min(), X[:,1].max(), 200)
     
     xx, yy = np.meshgrid(x1, x2)
     x_grid = np.column_stack((xx.ravel(), yy.ravel()))
     
-    model.train()
-    
-    # BALD
-    logits = torch.zeros((len(x_grid),2,T))
-    for t in range(T):
-        logits[:,:,t] = model(torch.tensor(x_grid).float())
-
-    var = logits[:,0,:].var(1)
+    if method == 'MC_drop':
+        model.train()
+        
+        # BALD
+        logits = torch.zeros((len(x_grid),2,T))
+        for t in range(T):
+            logits[:,:,t] = model(torch.tensor(x_grid).float())
+        
+        
+    var = logits.var(2).sum(1)
     var = var.detach().numpy().reshape(xx.shape)
-    
-    return X, y, xx, yy, var
-
-
-def BALD_1_grid(model, X, y, T = 20):
-
-    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
-    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
-    
-    xx, yy = np.meshgrid(x1, x2)
-    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
-    
-    model.train()
-    
-    # BALD
-    logits = torch.zeros((len(x_grid),2,T))
-    for t in range(T):
-        logits[:,:,t] = model(torch.tensor(x_grid).float())
 
     p_hat = F.softmax(logits, dim = 1)
     p_hat_mean_T = p_hat.mean(2)
     
-    first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)  
-    first_term = first_term.detach().numpy().reshape(xx.shape)
-    
-    return X, y, xx, yy, first_term
-
-
-def BALD_2_grid(model, X, y, T = 20):
-
-    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
-    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
-    
-    xx, yy = np.meshgrid(x1, x2)
-    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
-    
-    model.train()
-    
-    # BALD
-    logits = torch.zeros((len(x_grid),2,T))
-    for t in range(T):
-        logits[:,:,t] = model(torch.tensor(x_grid).float())
-
-    p_hat = F.softmax(logits, dim = 1)
-    p_hat_mean_T = p_hat.mean(2)
-    
+    first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
     second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
+    
+    BALD_scores = first_term-second_term
+    BALD_out = BALD_scores.detach().numpy().reshape(xx.shape)
+    
+    first_term = first_term.detach().numpy().reshape(xx.shape)
     second_term = second_term.detach().numpy().reshape(xx.shape)
     
-    return X, y, xx, yy, second_term
+    grids_list = [BALD_out, var, first_term, second_term]
+    
+    return xx, yy, grids_list

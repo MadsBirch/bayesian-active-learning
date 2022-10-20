@@ -10,13 +10,13 @@ class MLP(nn.Module):
   def __init__(self, drop_out = float):
     super().__init__()
     self.layers = nn.Sequential(
-      nn.Linear(2, 100),
+      nn.Linear(2, 50),
       nn.Dropout(drop_out),
       nn.ReLU(),
-      nn.Linear(100, 100),
+      nn.Linear(50, 50),
       nn.Dropout(drop_out),
       nn.ReLU(),
-      nn.Linear(100, 2)
+      nn.Linear(50, 2)
       #nn.Softmax(dim = 0)
     )
 
