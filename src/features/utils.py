@@ -1,12 +1,13 @@
 from random import shuffle
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 from sklearn.datasets import make_moons
 
 import random
@@ -106,7 +107,7 @@ def entropy_query(model, device, data_loader, query_size = 10):
     #return indices, e_scores
 
 
-def BALD_query(model, device, data_loader, data_len, X, y, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
+def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
 
     x1 = np.linspace(X[:,0].min(), X[:,0].max(), 200)
     x2 = np.linspace(X[:,1].min(), X[:,1].max(), 200)
@@ -119,29 +120,22 @@ def BALD_query(model, device, data_loader, data_len, X, y, batch_size, query_siz
     Xs = []
     
     # logits is of dim n*c*T
-    logits = torch.zeros((data_len,2,T))
+    logits = torch.zeros((datalen,2,T))
     logits_grid = torch.zeros((len(x_grid),2,T))
     
     if method == 'MC_drop':
         model.train()
-        for t in range(T):
+        for t in tqdm(range(T)):
             for i, batch in enumerate(data_loader):
                 X, y, idx = batch
                 logit = model(X.to(device))
                 logits[i*len(y):i*len(y)+len(y),:,t] = logit    
                 logits_grid[:,:,t] = model(torch.tensor(x_grid).float())
-                
-                if t == 0:
-                    indices.extend(idx.tolist())
-                    Xs.extend(X.tolist())
-                                  
-    
+                indices.extend(idx.tolist())
+                                      
     if method == 'ensemble':
-        
-        lr = 6e-4
-        for t in range(T):
-            
-            optimizer = optim.Adam(model.parameters(), lr = lr)
+        for t in tqdm(range(T)):
+            optimizer = optim.Adam(model.parameters(), lr = 6e-4)
             model = train(model, data_loader, optimizer, device, num_epochs = 1000, plot = False, printout = False)
             model.eval()
             with torch.no_grad():
@@ -150,11 +144,8 @@ def BALD_query(model, device, data_loader, data_len, X, y, batch_size, query_siz
                     logit = model(X.to(device))
                     logits[i*len(y):i*len(y)+len(y),:,t] = logit
                     logits_grid[:,:,t] = model(torch.tensor(x_grid).float())
-                    
-                    if t == 0:
-                        indices.extend(idx.tolist())
-                        Xs.extend(X.tolist())
-    
+                    indices.extend(idx.tolist())
+
     # grid calc        
     var_grid = logits_grid.var(2).sum(1)
     var_grid = var_grid.detach().numpy().reshape(xx.shape)
@@ -182,20 +173,27 @@ def BALD_query(model, device, data_loader, data_len, X, y, batch_size, query_siz
     second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
     BALD_scores = first_term - second_term
     
-    return BALD_scores.sort()[1][-query_size:], xx, yy, grids_list
+    indices = np.unique(indices)
+    BALD_scores = np.asarray(BALD_scores.detach().cpu())
+    indices = np.asarray(indices)
+    sorted_pool = np.argsort(-1*BALD_scores)
+    
+    return indices[sorted_pool][:query_size], xx, yy, grids_list
+    
+    #return BALD_scores.sort()[1][-query_size:], xx, yy, grids_list, indices
 
-def query_the_oracle(model, dataset, device, 
+def query_the_oracle(model, dataset, device, X, y,
                      T = 30,
                      query_size = 10, 
                      query_strategy = 'random', 
                      bald_method = 'MC_drop', 
                      batch_size = 100):
     
-    unlabeled_idx = np.nonzero(dataset.unlabeled_mask)[0]
-    data_len = len(unlabeled_idx)
+    unlabeled_idx = np.where(dataset.unlabeled_mask == 1)[0]
+    unlabeled_subset  = Subset(dataset, unlabeled_idx)
+    datalen = len(unlabeled_idx)
     
-    pool_loader = DataLoader(dataset, batch_size=batch_size, num_workers=0, 
-                                sampler=SubsetRandomSampler(unlabeled_idx), shuffle=False)
+    pool_loader = DataLoader(unlabeled_subset, batch_size=batch_size, num_workers=0, shuffle=False)
     
     if query_strategy == 'random':
         sample_idx = random_query(pool_loader, query_size=query_size)
@@ -214,31 +212,9 @@ def query_the_oracle(model, dataset, device,
         return sample_idx
         
     elif query_strategy == 'bald':
-        sample_idx, scores, sorted_pool, Xs = BALD_query(model, device, pool_loader, data_len, query_size = query_size, T = T, batch_size = batch_size, method = bald_method)
-        return sample_idx, scores, sorted_pool, Xs
+        sample_idx, xx, yy, grids_list = BALD_query(model, device, pool_loader, datalen, X, y, query_size = query_size, T = T, batch_size = batch_size, method = bald_method)
+        return sample_idx, xx, yy, grids_list
     
-
-def plot_decision_bound(model, moons_data):
-    X, y = make_moons(n_samples = 1000, noise = 0.3, random_state = 9)
-    x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
-    x2 = np.linspace(X[:,1].min()-0.5, X[:,1].max()+0.5, 500)
-    
-    xx, yy = np.meshgrid(x1, x2)
-    x_grid = np.column_stack((xx.ravel(), yy.ravel()))
-    
-    model.eval()
-
-    softmax_out = F.softmax(model(torch.tensor(x_grid).float()), dim = 1)
-    softmax_out = softmax_out.detach().numpy()[:,1].reshape(xx.shape)
-    
-    plt.figure(figsize = (8,4))
-    plt.pcolormesh(xx, yy, softmax_out, cmap=plt.cm.RdBu_r, shading = 'auto')
-    plt.scatter(X[:,0], X[:,1], c = y, cmap =plt.cm.RdBu_r, s = 8)
-    plt.xlim(X[:,0].min()-0.5, X[:,0].max()+0.5)
-    plt.ylim(X[:,1].min()-0.5, X[:,1].max()+0.5)
-    plt.colorbar()
-    plt.show()
-    return
 
 def softmax_grid(model, X, y):
     x1 = np.linspace(X[:,0].min()-0.5, X[:,0].max()+0.5, 500)
