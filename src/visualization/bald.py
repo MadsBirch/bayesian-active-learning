@@ -48,14 +48,14 @@ class PlotBALD(object):
         parser.add_argument('--num_queries', default=4, type=int)
         parser.add_argument('--query_size', default=5, type=int)
         parser.add_argument('--init_pool_size', default=5, type=int)
-        parser.add_argument('--save_name', default='bald_viz', type=str)
+        parser.add_argument('--save_name', default='bald', type=str)
         parser.add_argument('--device', default='cpu', type=str)
         
         args = parser.parse_args(sys.argv[2:])
         
         print(f"Using device: {args.device}")
         
-        FIGURE_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/reports/figures/'
+        FIGURE_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/reports/figures/bald/'
         
         # generate data
         X, y = make_moons(n_samples = 1000, noise = 0.2, random_state=9)
@@ -115,7 +115,7 @@ class PlotBALD(object):
         model = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, plot = False, printout = False)
 
         for j, query in enumerate(range(args.num_queries)):
-            print(f'// Query {j+1:2d} of size {args.query_size}')
+            print(f'// Query {j+1:2d} of {args.num_queries}')
 
             # evaluate BALD on unlabeled pool of data
             sample_idx, xx, yy, grids_list = query_the_oracle(model, traindata, args.device, X_train, y_train,
@@ -162,7 +162,7 @@ class PlotBALD(object):
         for i, n in enumerate(ns):
             axs[len(label_list)-1,i].set_xlabel(f'n={int(args.init_pool_size+n)}', fontsize=12)
 
-        plt.savefig(FIGURE_PATH+args.save_name)
+        plt.savefig(FIGURE_PATH+args.save_name+'_'+args.method+'_T'+str(args.T)+'_drop'+str(args.dropout)+'.png')
         plt.show()
         
 if __name__ == '__main__':

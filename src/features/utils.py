@@ -164,7 +164,6 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
     
     grids_list = [BALD_out_grid, var_grid, first_term_grid, second_term_grid]
 
-    
     # data
     p_hat = F.softmax(logits, dim = 1)
     p_hat_mean_T= p_hat.mean(2)
@@ -180,8 +179,6 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
     
     return indices[sorted_pool][:query_size], xx, yy, grids_list
     
-    #return BALD_scores.sort()[1][-query_size:], xx, yy, grids_list, indices
-
 def query_the_oracle(model, dataset, device, X, y,
                      T = 30,
                      query_size = 10, 
