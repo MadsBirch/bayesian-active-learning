@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.datasets import make_moons
+from PIL import Image
 
 import torch
 import torchvision
@@ -29,10 +30,25 @@ class TwoMoons(Dataset):
         self.unlabeled_mask = np.ones((len(self.unlabeled_mask)))
     
    
-class CIFAR10_CUSTOM(datasets.CIFAR10):
-    def __init__(self, root, train=True):
-        super().__init__(root, train, download=True)
-        self.unlabeled_mask = np.ones(len(super().__len__()))
+class MNIST_CUSTOM(datasets.MNIST):
+    def __init__(self, root, transform, train=True, ):
+        super().__init__(root, train, download=True, transform=transform)
+        self.unlabeled_mask = np.ones(super().__len__())
+        
+    def __getitem__(self, idx):
+        img, target = self.data[idx], int(self.targets[idx])
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img.numpy(), mode="L")
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target, idx
         
     def update_mask(self, idx):
         self.unlabeled_mask[idx] = 0

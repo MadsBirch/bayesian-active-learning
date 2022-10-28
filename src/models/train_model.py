@@ -92,7 +92,7 @@ def train(model, dataloader, optimizer, device, num_epochs = 100, plot = True, p
         fig.tight_layout()    
         plt.show()
     
-    return model
+    return model, optimizer
     
     
 

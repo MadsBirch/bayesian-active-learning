@@ -1,0 +1,227 @@
+import argparse
+from multiprocessing import pool
+import sys
+from tqdm import tqdm
+
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_moons
+from sklearn.model_selection import train_test_split
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+from torch.utils.data import DataLoader, Subset
+import torchvision.transforms as transforms
+
+from src.models.model import MLP, CNN, Net
+from src.data.data import TwoMoons, MNIST_CUSTOM
+from src.models.train_model import train, test
+from src.features.utils import query_the_oracle
+
+torch.manual_seed(0)
+np.random.seed(0)
+random.seed(0)
+
+class CompareAcquisitionFunctions(object):
+    def __init__(self):
+        parser = argparse.ArgumentParser(
+            description="Script for plotting the BALD acquisition function",
+            usage="python bald.py <command>"
+        )
+        parser.add_argument("command", help="Subcommand to run")
+        args = parser.parse_args(sys.argv[1:2])
+        if not hasattr(self, args.command):
+            print('Unrecognized command')
+            
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        getattr(self, args.command)()
+
+    def plot_curve(self):
+        print(f'Plotting performance on test set over increasing number of training samples...')
+        parser = argparse.ArgumentParser(description='BALD arguments')
+        parser.add_argument('--strat_list', nargs='+', default=['random', 'margin', 'entropy', 'bald'])
+        parser.add_argument('--dataset', default= 'TwoMoons', type = str)
+        parser.add_argument('--n_iter', default=5, type=int)
+        parser.add_argument('--num_queries', default=20, type=int)
+        parser.add_argument('--query_size', default=5, type=int)
+        parser.add_argument('--bald_method', default='MC_drop', type=str)
+        parser.add_argument('--T', default=10, type=int)
+        parser.add_argument('--dropout', default=0.1, type=float)
+        parser.add_argument('--init_pool_size', default=20, type=int)
+        parser.add_argument('--save_name', default='al_compare', type=str)
+        parser.add_argument('--device', default='cpu', type=str)
+        
+        args = parser.parse_args(sys.argv[2:])
+        
+        print(f"Using device: {args.device}")
+        
+        FIGURE_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/reports/figures/al_compare/'
+        MODEL_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/models/'
+        
+        TEST_ACC = np.zeros((args.n_iter, args.num_queries+1))
+        query_dict = {
+            'bald': {'acc_mean': [], 'acc_se': []},
+            'random': {'acc_mean': [], 'acc_se': []},
+            'entropy': {'acc_mean': [], 'acc_se': []},
+            'margin': {'acc_mean': [], 'acc_se': []}
+        }
+
+        # define model
+        if args.dataset == 'TwoMoons':
+            
+            num_epochs = 1000
+            batch_size = 256
+            lr = 6e-4
+        
+            model = MLP(dropout=args.dropout)
+            optimizer = optim.Adam(model.parameters(), lr = lr)
+
+            
+            # generate data
+            X, y = make_moons(n_samples = 1000, noise = 0.2, random_state=9)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=9)
+
+            traindata = TwoMoons(X_train, y_train, return_idx = True)
+            testdata = TwoMoons(X_test, y_test, return_idx = True)
+            testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
+        
+            # generate inital pool inidices
+            init_pool_idx = np.random.randint(0,500, size = args.init_pool_size).tolist()
+            print(f'Initial pool size {len(init_pool_idx)}')
+        
+        if args.dataset == 'MNIST':
+            
+            num_epochs = 100
+            batch_size = 256
+            lr = 1e-4
+            
+            transform = transforms.Compose(
+                [transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+                        
+            model = Net(dropout=args.dropout)
+            optimizer = optim.Adam(model.parameters(), lr = lr)
+            
+            traindata = MNIST_CUSTOM(root='data/raw', transform = transform, train = True)
+            testdata = MNIST_CUSTOM(root='data/raw', transform = transform, train = False)
+            testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
+            
+            # generate inital pool inidices
+            init_pool_idx = np.random.randint(0,30000, size = args.init_pool_size).tolist()
+            print(f'Initial pool size {len(init_pool_idx)}')
+            
+            
+        # reset dataset
+        traindata.reset_mask()
+        traindata.update_mask(init_pool_idx)
+        
+        # train model on initial pool and save to disc (load in later)
+        print(f'Training common model on initial pool...')
+        
+        # train on initial labeled pool and save model
+        labeled_subset = Subset(traindata, init_pool_idx)
+        labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
+        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, plot = False, printout = False)
+        
+        state = {
+            'state_dict': model.state_dict(),
+            'optimizer': optimizer.state_dict()
+        }
+        torch.save(state, MODEL_PATH+'model.pth')
+
+        for s in args.strat_list:
+            print(f'STRATEGY: {s}')
+            for i in range(args.n_iter):
+                print(f'ITER: {i+1:2d}')
+                torch.manual_seed(i)
+                
+                # reset dataset model and optimizer
+                traindata.reset_mask()
+                traindata.update_mask(init_pool_idx)
+                
+                # load model trained on initial pool
+                if args.dataset == 'MNIST':
+                    model = Net(dropout=args.dropout)
+                    
+                if args.dataset == 'TwoMoons':
+                    model = MLP(dropout=args.dropout)
+                    
+                optimizer = optim.Adam(model.parameters(), lr = lr)
+
+                state = torch.load(MODEL_PATH+'model.pth')
+                model.load_state_dict(state['state_dict'])
+                optimizer.load_state_dict(state['optimizer'])
+                
+                TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
+            
+                for query in tqdm(range(args.num_queries)):
+                    # quering data points
+                
+                    sample_idx = query_the_oracle(model, traindata, 
+                                                            args.device,
+                                                            T = args.T,
+                                                            query_size=args.query_size,
+                                                            query_strategy= s,
+                                                            bald_method=args.bald_method,
+                                                            batch_size=batch_size)
+
+                    traindata.update_mask(sample_idx)
+                    labeled_idx = np.where(traindata.unlabeled_mask == 0)[0]
+                    
+                    # train on labeled pool subset
+                    labeled_subset = Subset(traindata, labeled_idx)
+                    labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0,shuffle = False)
+                    model, _ = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, plot = False, printout = False)
+
+                    # test model
+                    test_acc = test(model, testloader, args.device, display = False)
+                    TEST_ACC[i,query+1] = test_acc
+
+            query_dict[s]['acc_se'] = TEST_ACC.std(0)/np.sqrt(args.n_iter)
+            query_dict[s]['acc_mean']  = TEST_ACC.mean(0)
+
+        x = np.arange(args.init_pool_size,args.num_queries+args.init_pool_size+1,dtype=int)
+        plt.figure(figsize=(10,6))
+        for s in args.strat_list:
+            mean = query_dict[s]['acc_mean']
+            std = query_dict[s]['acc_se']
+            plt.plot(x, mean, label = s)
+            plt.legend()
+            plt.title('Performance of Active Learning w. Different Acquisition Strategies')
+            plt.xlabel('Number of Traning Points')
+            plt.ylabel('Test Accuracy (%)')
+            plt.xticks(x, x)
+            plt.fill_between(x, mean+std, mean-std, alpha = 0.4)
+        plt.savefig(FIGURE_PATH+args.save_name+'.png')
+        plt.show()
+        
+        
+    def plot_grid(self):
+        print(f'Plotting decision boundary...')
+        parser = argparse.ArgumentParser(description='BALD arguments')
+        parser.add_argument('--strat_list', default= ['random', 'margin', 'entropy', 'bald'], type =list)
+        parser.add_argument('--n_iter', default=5, type=int)
+        parser.add_argument('--num_queries', default=20, type=int)
+        parser.add_argument('--query_size', default=5, type=int)
+        parser.add_argument('--bald_method', default='MC_drop', type=str)
+        parser.add_argument('--T', default=100, type=int)
+        parser.add_argument('--dropout', default=0.1, type=float)
+        parser.add_argument('--init_pool_size', default=10, type=int)
+        parser.add_argument('--save_name', default='al_compare', type=str)
+        parser.add_argument('--device', default='cpu', type=str)
+        
+        args = parser.parse_args(sys.argv[1:])
+        
+        print(f"Using device: {args.device}")
+        
+        FIGURE_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/reports/figures/al_compare/'
+        MODEL_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/models/'
+            
+
+if __name__ == '__main__':
+    CompareAcquisitionFunctions()

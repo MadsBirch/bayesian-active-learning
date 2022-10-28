@@ -14,9 +14,6 @@ import random
 
 from src.models.train_model import train
 
-torch.manual_seed(0)
-np.random.seed(0)
-random.seed(0)
 
 def random_query(data_loader, query_size=10):
     
@@ -107,7 +104,7 @@ def entropy_query(model, device, data_loader, query_size = 10):
     #return indices, e_scores
 
 
-def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
+def BALD_query_grid(model, device, data_loader, datalen, X, y, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
 
     x1 = np.linspace(X[:,0].min(), X[:,0].max(), 200)
     x2 = np.linspace(X[:,1].min(), X[:,1].max(), 200)
@@ -115,9 +112,8 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
     xx, yy = np.meshgrid(x1, x2)
     x_grid = np.column_stack((xx.ravel(), yy.ravel()))
 
-    logits_list = []
     indices = []
-    Xs = []
+    eps = 1e-8
     
     # logits is of dim n*c*T
     logits = torch.zeros((datalen,2,T))
@@ -125,7 +121,7 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
     
     if method == 'MC_drop':
         model.train()
-        for t in tqdm(range(T)):
+        for t in range(T):
             for i, batch in enumerate(data_loader):
                 X, y, idx = batch
                 logit = model(X.to(device))
@@ -134,7 +130,7 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
                 indices.extend(idx.tolist())
                                       
     if method == 'ensemble':
-        for t in tqdm(range(T)):
+        for t in range(T):
             optimizer = optim.Adam(model.parameters(), lr = 6e-4)
             model = train(model, data_loader, optimizer, device, num_epochs = 1000, plot = False, printout = False)
             model.eval()
@@ -150,9 +146,10 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
     var_grid = logits_grid.var(2).sum(1)
     var_grid = var_grid.detach().numpy().reshape(xx.shape)
 
-    p_hat_grid = F.softmax(logits_grid, dim = 1)
-    p_hat_mean_T_grid = p_hat_grid.mean(2)
-    
+    # add epsilon to prevent underflow (alternative rewrite)
+    p_hat_grid = F.softmax(logits_grid, dim = 1) + eps
+    p_hat_mean_T_grid = p_hat_grid.mean(2) + eps
+
     first_term_grid = (-p_hat_mean_T_grid*torch.log(p_hat_mean_T_grid)).sum(1)
     second_term_grid = (-p_hat_grid*torch.log(p_hat_grid)).sum(1).mean(1)
     
@@ -165,8 +162,8 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
     grids_list = [BALD_out_grid, var_grid, first_term_grid, second_term_grid]
 
     # data
-    p_hat = F.softmax(logits, dim = 1)
-    p_hat_mean_T= p_hat.mean(2)
+    p_hat = F.softmax(logits, dim = 1) + eps
+    p_hat_mean_T= p_hat.mean(2) + eps
     
     first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
     second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
@@ -179,7 +176,54 @@ def BALD_query(model, device, data_loader, datalen, X, y, batch_size, query_size
     
     return indices[sorted_pool][:query_size], xx, yy, grids_list
     
-def query_the_oracle(model, dataset, device, X, y,
+    
+def BALD_query(model, device, data_loader, datalen, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
+
+    indices = []
+    eps = 1e-8
+
+    # logits is of dim n*c*T
+    logits = torch.zeros((datalen,10,T))
+
+    if method == 'MC_drop':
+        model.train()
+        for t in tqdm(range(T)):
+            for i, batch in enumerate(data_loader):
+                X, y, idx = batch
+                logit = model(X.to(device))
+                logits[i*len(y):i*len(y)+len(y),:,t] = logit    
+                indices.extend(idx.tolist())
+                                        
+    if method == 'ensemble':
+        for t in tqdm(range(T)):
+            optimizer = optim.Adam(model.parameters(), lr = 6e-4)
+            model = train(model, data_loader, optimizer, device, num_epochs = 1000, plot = False, printout = False)
+            model.eval()
+            with torch.no_grad():
+                for i, batch in enumerate(data_loader):
+                    X, y, idx = batch
+                    logit = model(X.to(device))
+                    logits[i*len(y):i*len(y)+len(y),:,t] = logit
+                    indices.extend(idx.tolist())
+                    
+    # data
+    p_hat = F.softmax(logits, dim = 1) + eps
+    p_hat_mean_T= p_hat.mean(2) + eps
+
+    first_term = (-p_hat_mean_T*torch.log(p_hat_mean_T)).sum(1)
+    second_term = (-p_hat*torch.log(p_hat)).sum(1).mean(1)
+    BALD_scores = first_term - second_term
+
+    indices = np.unique(indices)
+    BALD_scores = np.asarray(BALD_scores.detach().cpu())
+    indices = np.asarray(indices)
+    sorted_pool = np.argsort(-1*BALD_scores)
+
+    return indices[sorted_pool][:query_size]
+  
+def query_the_oracle(model, 
+                     dataset, 
+                     device,
                      T = 30,
                      query_size = 10, 
                      query_strategy = 'random', 
@@ -209,8 +253,8 @@ def query_the_oracle(model, dataset, device, X, y,
         return sample_idx
         
     elif query_strategy == 'bald':
-        sample_idx, xx, yy, grids_list = BALD_query(model, device, pool_loader, datalen, X, y, query_size = query_size, T = T, batch_size = batch_size, method = bald_method)
-        return sample_idx, xx, yy, grids_list
+        sample_idx = BALD_query(model, device, pool_loader, datalen, query_size = query_size, T = T, batch_size = batch_size, method = bald_method)
+        return sample_idx
     
 
 def softmax_grid(model, X, y):

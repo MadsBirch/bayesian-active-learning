@@ -19,9 +19,9 @@ from src.data.data import get_dataloaders, TwoMoons
 from src.models.train_model import train, test
 from src.features.utils import softmax_grid, BALD_query, query_the_oracle
 
-torch.manual_seed(9)
-np.random.seed(9)
-random.seed(9)
+torch.manual_seed(0)
+np.random.seed(0)
+random.seed(0)
 
 class PlotBALD(object):
     def __init__(self):
@@ -47,7 +47,7 @@ class PlotBALD(object):
         parser.add_argument('--dropout', default=0.1, type=float)
         parser.add_argument('--num_queries', default=4, type=int)
         parser.add_argument('--query_size', default=5, type=int)
-        parser.add_argument('--init_pool_size', default=5, type=int)
+        parser.add_argument('--init_pool_size', default=10, type=int)
         parser.add_argument('--save_name', default='bald', type=str)
         parser.add_argument('--device', default='cpu', type=str)
         
