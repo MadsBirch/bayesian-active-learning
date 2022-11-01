@@ -177,10 +177,9 @@ class CompareAcquisitionFunctions(object):
                 
                 for query in tqdm(range(args.num_queries)):
                     
-
                     # quering data points            
                     unlab_pool_subset = Subset(traindata, unlab_idxs)
-                    unlab_pool_loader = DataLoader(unlab_pool_subset, batch_size=batch_size, num_workers=0, shuffle = False)
+                    unlab_pool_loader = DataLoader(unlab_pool_subset, batch_size=2000, num_workers=0, shuffle = False)
                     sample_idx = query_the_oracle(model, unlab_pool_loader, 
                                                             args.device,
                                                             T = args.T,
