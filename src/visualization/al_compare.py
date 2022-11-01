@@ -57,7 +57,6 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
         parser.add_argument('--device', default='cpu', type=str)
-        parser.add_argument('--subset', default=True, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
         
@@ -116,13 +115,7 @@ class CompareAcquisitionFunctions(object):
             # train and test data
             traindata = MNIST_CUSTOM(root='data/raw', train = True, transform = transforms.ToTensor())
             testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
-            
-            # use subset if specified and make sure the initial pool is included
-            if args.subset:
-                num_samples = 1500
-                rand_idxs = np.random.randint(0, len(traindata), size = num_samples).tolist()
-                traindata = Subset(traindata, rand_idxs).dataset
-            
+
             # generate a balanced inital pool
             initial_idx = []
             for i in range(10):
@@ -137,9 +130,7 @@ class CompareAcquisitionFunctions(object):
             #trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=False, num_workers=0)
             valloader = DataLoader(valdata, batch_size=batch_size, shuffle=False, num_workers=0)
             testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
-            
-        print(len(traindata))
-        
+                    
         # reset dataset
         traindata.reset_mask()
         traindata.update_mask(initial_idx)
