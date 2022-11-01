@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 import torchvision.transforms as transforms
 
-from src.models.model import MLP, CNN, Net
+from src.models.model import MLP, PaperCNN
 from src.data.data import TwoMoons, MNIST_CUSTOM
 from src.models.train_model import train, test
 from src.features.utils import query_the_oracle
@@ -96,25 +96,32 @@ class CompareAcquisitionFunctions(object):
         
         if args.dataset == 'MNIST':
             
-            num_epochs = 100
+            num_epochs = 50
             batch_size = 256
-            lr = 1e-4
+            lr = 1e-3
             
-            transform = transforms.Compose(
-                [transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-                        
-            model = Net(dropout=args.dropout)
+            model = PaperCNN()
             optimizer = optim.Adam(model.parameters(), lr = lr)
             
-            traindata = MNIST_CUSTOM(root='data/raw', transform = transform, train = True)
-            testdata = MNIST_CUSTOM(root='data/raw', transform = transform, train = False)
+            # train and test data
+            traindata = MNIST_CUSTOM(root='data/raw', train = True, transform = transforms.ToTensor())
+            testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
+
+            # generate a balanced inital pool
+            initial_idx = []
+            for i in range(10):
+                initial_idx.extend(np.random.choice(np.where(traindata.targets ==i)[0], size=2, replace=False))
+
+            # generate validation set of 100 samples
+            num_samples = 100
+            random_indices = torch.randperm(num_samples)
+            valdata = Subset(testdata, random_indices)
+            
+            # dataloaders
+            #trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=False, num_workers=0)
+            valloader = DataLoader(valdata, batch_size=batch_size, shuffle=False, num_workers=0)
             testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
-            
-            # generate inital pool inidices
-            init_pool_idx = np.random.randint(0,30000, size = args.init_pool_size).tolist()
-            print(f'Initial pool size {len(init_pool_idx)}')
-            
+               
             
         # reset dataset
         traindata.reset_mask()
