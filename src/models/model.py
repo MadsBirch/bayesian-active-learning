@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+# MLP for the TwoMoons dataset
 class MLP(nn.Module):
   '''
     Multilayer Perceptron for classification.
@@ -13,7 +13,6 @@ class MLP(nn.Module):
     self.layers = nn.Sequential(
       nn.Linear(2, 50),
       nn.ReLU(),
-      nn.Dropout(dropout),
       nn.Linear(50, 50),
       nn.ReLU(),
       nn.Dropout(dropout),
@@ -22,34 +21,30 @@ class MLP(nn.Module):
   def forward(self, x):
     return self.layers(x)
 
-class CNN(nn.Module):
-    def __init__(self, dropout = float):
+# MNIST CNN implemented in the paper https://arxiv.org/abs/1703.02910
+class PaperCNN(nn.Module):
+    def __init__(self, in_channels = 1, n_classes=10) -> None:
         super().__init__()
         self.conv = nn.Sequential(
-          nn.Conv2d(3, 6, 5),
-          nn.ReLU(),
-          nn.Dropout2d(dropout),
-          nn.MaxPool2d(2, 2),
-          nn.Conv2d(6, 16, 5),
-          nn.ReLU(),
-          nn.Dropout2d(dropout),
-          )
-        self.linear = nn.Sequential(
-          nn.Linear(16 * 5 * 5, 120),
-          nn.ReLU(),
-          nn.Dropout(dropout),
-          nn.Linear(120, 84),
-          nn.ReLU(),
-          nn.Dropout(dropout),
-          nn.Linear(84, 10)  
+            nn.Conv2d(in_channels, 32, 4),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 4),
+            nn.MaxPool2d(2),
+            nn.Dropout2d(0.25)
+        )
+        self.lin =  nn.Sequential(
+            nn.Linear(11*11*32,128),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128, n_classes)
         )
     def forward(self, x):
-      x = self.conv(x)
-      x = torch.flatten(x, 1) # flatten all dimensions except batch
-      x = self.linear(x)
-      return x
+        x = self.conv(x)
+        x = torch.flatten(x, 1)
+        x = self.lin(x)
+        return x
     
-    
+# CIFAR10 CNN classifier taken from https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 class Net(nn.Module):
     def __init__(self, dropout = float):
         super().__init__()

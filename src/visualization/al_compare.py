@@ -16,10 +16,12 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 import torchvision.transforms as transforms
 
-from src.models.model import MLP, CNN, Net
+from src.models.model import MLP, PaperCNN
 from src.data.data import TwoMoons, MNIST_CUSTOM
 from src.models.train_model import train, test
-from src.features.utils import query_the_oracle
+from src.features.acquistion_funcs import query_the_oracle
+from torchvision import datasets
+
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -44,17 +46,18 @@ class CompareAcquisitionFunctions(object):
     def plot_curve(self):
         print(f'Plotting performance on test set over increasing number of training samples...')
         parser = argparse.ArgumentParser(description='BALD arguments')
-        parser.add_argument('--strat_list', nargs='+', default=['random', 'margin', 'entropy', 'bald'])
-        parser.add_argument('--dataset', default= 'TwoMoons', type = str)
-        parser.add_argument('--n_iter', default=5, type=int)
-        parser.add_argument('--num_queries', default=20, type=int)
-        parser.add_argument('--query_size', default=5, type=int)
+        parser.add_argument('--strat_list', nargs='+', default=['bald', 'margin', 'entropy', 'random'])
+        parser.add_argument('--dataset', default= 'MNIST', type = str)
+        parser.add_argument('--n_iter', default=3, type=int)
+        parser.add_argument('--num_queries', default=10, type=int)
+        parser.add_argument('--query_size', default=10, type=int)
         parser.add_argument('--bald_method', default='MC_drop', type=str)
         parser.add_argument('--T', default=10, type=int)
-        parser.add_argument('--dropout', default=0.1, type=float)
+        parser.add_argument('--dropout', default=0.3, type=float)
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
         parser.add_argument('--device', default='cpu', type=str)
+        parser.add_argument('--subset', default=True, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
         
@@ -90,49 +93,70 @@ class CompareAcquisitionFunctions(object):
             testdata = TwoMoons(X_test, y_test, return_idx = True)
             testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
         
-            # generate inital pool inidices
-            init_pool_idx = np.random.randint(0,500, size = args.init_pool_size).tolist()
-            print(f'Initial pool size {len(init_pool_idx)}')
-        
-        if args.dataset == 'MNIST':
+            num_samples = 100
+            random_indices = torch.randperm(num_samples)
+            valdata = Subset(testdata, random_indices)
             
-            num_epochs = 100
+            valloader = DataLoader(valdata, batch_size=batch_size, shuffle=False, num_workers=0)
+            
+            # generate a balanced inital pool
+            initial_idx = np.array([],dtype=int)
+            for i in range(2):
+                idx = np.random.choice(np.where(traindata.y ==i)[0], size=5, replace=False)
+                initial_idx = np.concatenate((initial_idx, idx))
+                
+        if args.dataset == 'MNIST':            
+            num_epochs = 50
             batch_size = 256
-            lr = 1e-4
+            lr = 1e-3
             
-            transform = transforms.Compose(
-                [transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-                        
-            model = Net(dropout=args.dropout)
+            model = PaperCNN()
             optimizer = optim.Adam(model.parameters(), lr = lr)
             
-            traindata = MNIST_CUSTOM(root='data/raw', transform = transform, train = True)
-            testdata = MNIST_CUSTOM(root='data/raw', transform = transform, train = False)
+            # train and test data
+            traindata = MNIST_CUSTOM(root='data/raw', train = True, transform = transforms.ToTensor())
+            testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
+            
+            # use subset if specified and make sure the initial pool is included
+            if args.subset:
+                num_samples = 1500
+                rand_idxs = np.random.randint(0, len(traindata), size = num_samples).tolist()
+                traindata = Subset(traindata, rand_idxs).dataset
+            
+            # generate a balanced inital pool
+            initial_idx = []
+            for i in range(10):
+                initial_idx.extend(np.random.choice(np.where(traindata.targets ==i)[0], size=2, replace=False))
+
+            # generate validation set of 100 samples
+            num_samples = 100
+            random_indices = torch.randperm(num_samples)
+            valdata = Subset(testdata, random_indices)
+            
+            # dataloaders
+            #trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=False, num_workers=0)
+            valloader = DataLoader(valdata, batch_size=batch_size, shuffle=False, num_workers=0)
             testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
             
-            # generate inital pool inidices
-            init_pool_idx = np.random.randint(0,30000, size = args.init_pool_size).tolist()
-            print(f'Initial pool size {len(init_pool_idx)}')
-            
-            
+        print(len(traindata))
+        
         # reset dataset
         traindata.reset_mask()
-        traindata.update_mask(init_pool_idx)
+        traindata.update_mask(initial_idx)
         
         # train model on initial pool and save to disc (load in later)
         print(f'Training common model on initial pool...')
         
         # train on initial labeled pool and save model
-        labeled_subset = Subset(traindata, init_pool_idx)
+        labeled_subset = Subset(traindata, initial_idx)
         labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
-        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, plot = False, printout = False)
-        
+        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, val = False, plot = False, printout = False)
+
         state = {
             'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict()
         }
-        torch.save(state, MODEL_PATH+'model.pth')
+        torch.save(state, MODEL_PATH+args.dataset+'model.pth')
 
         for s in args.strat_list:
             print(f'STRATEGY: {s}')
@@ -142,50 +166,58 @@ class CompareAcquisitionFunctions(object):
                 
                 # reset dataset model and optimizer
                 traindata.reset_mask()
-                traindata.update_mask(init_pool_idx)
+                traindata.update_mask(initial_idx)
                 
                 # load model trained on initial pool
                 if args.dataset == 'MNIST':
-                    model = Net(dropout=args.dropout)
+                    model = PaperCNN()
                     
                 if args.dataset == 'TwoMoons':
                     model = MLP(dropout=args.dropout)
                     
                 optimizer = optim.Adam(model.parameters(), lr = lr)
 
-                state = torch.load(MODEL_PATH+'model.pth')
+                state = torch.load(MODEL_PATH+args.dataset+'model.pth')
                 model.load_state_dict(state['state_dict'])
                 optimizer.load_state_dict(state['optimizer'])
                 
                 TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
-            
+                                
                 for query in tqdm(range(args.num_queries)):
-                    # quering data points
-                
-                    sample_idx = query_the_oracle(model, traindata, 
+                    # get pool of unlabeled datapoints        
+                    unlabeled_idx = np.where(traindata.unlabeled_mask == 1)[0]
+                    unlabeled_subset  = Subset(traindata, unlabeled_idx)
+                    unlab_pool_loader = DataLoader(unlabeled_subset, batch_size=2000, num_workers=0, shuffle=False)
+                    
+                    # query data points from unlabeled pool
+                    sample_idx = query_the_oracle(model, unlab_pool_loader, 
                                                             args.device,
                                                             T = args.T,
                                                             query_size=args.query_size,
                                                             query_strategy= s,
-                                                            bald_method=args.bald_method,
-                                                            batch_size=batch_size)
-
+                                                            bald_method=args.bald_method
+                                                            )
+                    
+                    # update labeled pool with queried data points
                     traindata.update_mask(sample_idx)
                     labeled_idx = np.where(traindata.unlabeled_mask == 0)[0]
                     
                     # train on labeled pool subset
                     labeled_subset = Subset(traindata, labeled_idx)
                     labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0,shuffle = False)
-                    model, _ = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, plot = False, printout = False)
+                    model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=num_epochs, val = False, plot = False, printout = False)
 
                     # test model
-                    test_acc = test(model, testloader, args.device, display = False)
-                    TEST_ACC[i,query+1] = test_acc
+                    TEST_ACC[i,query+1] = test(model, testloader, args.device, display = False)
 
             query_dict[s]['acc_se'] = TEST_ACC.std(0)/np.sqrt(args.n_iter)
             query_dict[s]['acc_mean']  = TEST_ACC.mean(0)
 
-        x = np.arange(args.init_pool_size,args.num_queries+args.init_pool_size+1,dtype=int)
+        x = np.linspace(start = args.init_pool_size,
+                    stop = args.num_queries*args.query_size, 
+                    num = args.num_queries+1, 
+                    dtype=int)
+        
         plt.figure(figsize=(10,6))
         for s in args.strat_list:
             mean = query_dict[s]['acc_mean']
@@ -197,7 +229,7 @@ class CompareAcquisitionFunctions(object):
             plt.ylabel('Test Accuracy (%)')
             plt.xticks(x, x)
             plt.fill_between(x, mean+std, mean-std, alpha = 0.4)
-        plt.savefig(FIGURE_PATH+args.save_name+'.png')
+        plt.savefig(FIGURE_PATH+args.dataset+args.save_name+'.png')
         plt.show()
         
         

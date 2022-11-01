@@ -56,7 +56,7 @@ class PlotBALD(object):
         print(f"Using device: {args.device}")
         
         FIGURE_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/reports/figures/bald/'
-        
+
         # generate data
         X, y = make_moons(n_samples = 1000, noise = 0.2, random_state=9)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=9)
@@ -65,7 +65,6 @@ class PlotBALD(object):
         testdata = TwoMoons(X_test, y_test, return_idx = True)
                 
         # define model
-        model = MLP(drop_out=args.dropout)
         num_epochs = 1000
         batch_size = 256
         lr = 6e-4
@@ -83,7 +82,7 @@ class PlotBALD(object):
         traindata.update_mask(init_pool_idx)
         
         #  model and optimizer
-        model = MLP(drop_out=args.dropout)
+        model = MLP(dropout=args.dropout)
         optimizer = optim.Adam(model.parameters(), lr = lr)
         
         # evaluate BALD on unlabeled pool of data
@@ -112,8 +111,8 @@ class PlotBALD(object):
         # train on initial labeled pool
         labeled_subset = Subset(traindata, init_pool_idx)
         labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
-        model = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, plot = False, printout = False)
-
+        model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader = None, num_epochs=num_epochs, val = False, plot = False, printout = False)
+        
         for j, query in enumerate(range(args.num_queries)):
             print(f'// Query {j+1:2d} of {args.num_queries}')
 
@@ -143,12 +142,11 @@ class PlotBALD(object):
             axs[4,j+1].scatter(X_train[:,0], X_train[:,1], c = y_train, alpha = 0.1, marker = '.')
             axs[4,j+1].set_xlim(X_train[:,0].min(), X_train[:,0].max())
             axs[4,j+1].set_ylim(X_train[:,1].min(), X_train[:,1].max())
-            
-            
+              
             # train on labeled pool subset
             labeled_subset = Subset(traindata, labeled_idx)
             labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0,shuffle = False)
-            model = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, plot = False, printout = False)
+            model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader = None, num_epochs=num_epochs, val = False, plot = False, printout = False)
 
         fig.colorbar(mesh, ax=axs.ravel().tolist(), fraction=0.01, pad=0.01)
 

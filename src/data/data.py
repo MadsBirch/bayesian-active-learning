@@ -6,7 +6,7 @@ import torch
 import torchvision
 from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import datasets
-
+import torchvision.transforms as transforms
 
 class TwoMoons(Dataset):
     def __init__(self, X, y, return_idx = True):
@@ -31,7 +31,7 @@ class TwoMoons(Dataset):
     
    
 class MNIST_CUSTOM(datasets.MNIST):
-    def __init__(self, root, transform, train=True, ):
+    def __init__(self, root, transform = transforms.ToTensor(), train=True):
         super().__init__(root, train, download=True, transform=transform)
         self.unlabeled_mask = np.ones(super().__len__())
         
@@ -56,7 +56,11 @@ class MNIST_CUSTOM(datasets.MNIST):
     def reset_mask(self): 
         self.unlabeled_mask = np.ones((len(self.unlabeled_mask)))
         
-    
+    def __len__(self) -> int:
+        return super().__len__()
+        
+
+
 def get_dataloaders(traindata, testdata,
                     batch_size = 256
                     ):
