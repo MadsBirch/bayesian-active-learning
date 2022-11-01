@@ -23,7 +23,6 @@ def entropy_calc(outputs):
     return H
 
 def bald_calc(outputs):
-    
     outputs = torch.stack(outputs, dim = -1)
     pc = outputs.mean(2)
     
@@ -34,7 +33,6 @@ def bald_calc(outputs):
 
     
 ### grids ###
-
 def BALD_query_grid(model, device, data_loader, datalen, X, y, batch_size, query_size = 10, T = 30, method = 'MC_drop'):
 
     x1 = np.linspace(X[:,0].min(), X[:,0].max(), 200)
