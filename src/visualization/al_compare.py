@@ -46,7 +46,7 @@ class CompareAcquisitionFunctions(object):
     def plot_curve(self):
         print(f'Plotting performance on test set over increasing number of training samples...')
         parser = argparse.ArgumentParser(description='BALD arguments')
-        parser.add_argument('--strat_list', nargs='+', default=['bald', 'margin', 'entropy', 'random'])
+        parser.add_argument('--strat_list', nargs='+', default=['bald', 'entropy', 'random'])
         parser.add_argument('--dataset', default= 'MNIST', type = str)
         parser.add_argument('--n_iter', default=3, type=int)
         parser.add_argument('--num_queries', default=10, type=int)
@@ -57,6 +57,7 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
         parser.add_argument('--device', default='cpu', type=str)
+        parser.add_argument('--subset', default=True, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
         
@@ -115,11 +116,16 @@ class CompareAcquisitionFunctions(object):
             # train and test data
             traindata = MNIST_CUSTOM(root='data/raw', train = True, transform = transforms.ToTensor())
             testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
-
+            
             # generate a balanced inital pool
             initial_idx = []
             for i in range(10):
-                initial_idx.extend(np.random.choice(np.where(traindata.targets ==i)[0], size=2, replace=False))
+                initial_idx.extend(np.random.choice(np.where(traindata.targets==i)[0], size=2, replace=False))
+                
+            # use subset if specified and make sure the initial pool is included
+            if args.subset:
+                num_samples = 1500
+                train_idxs = np.arange(0,1500, 1) #np.random.randint(0, len(traindata), size = num_samples).tolist()
 
             # generate validation set of 100 samples
             num_samples = 100
@@ -127,14 +133,10 @@ class CompareAcquisitionFunctions(object):
             valdata = Subset(testdata, random_indices)
             
             # dataloaders
-            #trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=False, num_workers=0)
+            trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=False, num_workers=0)
             valloader = DataLoader(valdata, batch_size=batch_size, shuffle=False, num_workers=0)
             testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
-                    
-        # reset dataset
-        traindata.reset_mask()
-        traindata.update_mask(initial_idx)
-        
+                      
         # train model on initial pool and save to disc (load in later)
         print(f'Training common model on initial pool...')
         
@@ -155,10 +157,7 @@ class CompareAcquisitionFunctions(object):
                 print(f'ITER: {i+1:2d}')
                 torch.manual_seed(i)
                 
-                # reset dataset model and optimizer
-                traindata.reset_mask()
-                traindata.update_mask(initial_idx)
-                
+                unlab_idxs = train_idxs
                 # load model trained on initial pool
                 if args.dataset == 'MNIST':
                     model = PaperCNN()
@@ -173,14 +172,15 @@ class CompareAcquisitionFunctions(object):
                 optimizer.load_state_dict(state['optimizer'])
                 
                 TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
-                                
+                
+                lab_pool_idxs = initial_idx
+                
                 for query in tqdm(range(args.num_queries)):
-                    # get pool of unlabeled datapoints        
-                    unlabeled_idx = np.where(traindata.unlabeled_mask == 1)[0]
-                    unlabeled_subset  = Subset(traindata, unlabeled_idx)
-                    unlab_pool_loader = DataLoader(unlabeled_subset, batch_size=2000, num_workers=0, shuffle=False)
                     
-                    # query data points from unlabeled pool
+
+                    # quering data points            
+                    unlab_pool_subset = Subset(traindata, unlab_idxs)
+                    unlab_pool_loader = DataLoader(unlab_pool_subset, batch_size=batch_size, num_workers=0, shuffle = False)
                     sample_idx = query_the_oracle(model, unlab_pool_loader, 
                                                             args.device,
                                                             T = args.T,
@@ -189,12 +189,11 @@ class CompareAcquisitionFunctions(object):
                                                             bald_method=args.bald_method
                                                             )
                     
-                    # update labeled pool with queried data points
-                    traindata.update_mask(sample_idx)
-                    labeled_idx = np.where(traindata.unlabeled_mask == 0)[0]
+                    unlab_idxs = [x for x in unlab_idxs if (x != sample_idx).all()]
+                    lab_pool_idxs.extend(sample_idx)
                     
                     # train on labeled pool subset
-                    labeled_subset = Subset(traindata, labeled_idx)
+                    labeled_subset = Subset(traindata, lab_pool_idxs)
                     labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0,shuffle = False)
                     model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=num_epochs, val = False, plot = False, printout = False)
 
