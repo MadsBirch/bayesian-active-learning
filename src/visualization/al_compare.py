@@ -46,7 +46,7 @@ class CompareAcquisitionFunctions(object):
     def plot_curve(self):
         print(f'Plotting performance on test set over increasing number of training samples...')
         parser = argparse.ArgumentParser(description='BALD arguments')
-        parser.add_argument('--strat_list', nargs='+', default=['bald', 'entropy', 'random'])
+        parser.add_argument('--strat_list', nargs='+', default=['bald', 'entropy', 'random', 'margin'])
         parser.add_argument('--dataset', default= 'MNIST', type = str)
         parser.add_argument('--n_iter', default=3, type=int)
         parser.add_argument('--num_queries', default=10, type=int)
@@ -56,7 +56,7 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--dropout', default=0.3, type=float)
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
-        parser.add_argument('--device', default='cpu', type=str)
+        parser.add_argument('--device', default='mps', type=str)
         parser.add_argument('--subset', default=True, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
@@ -110,12 +110,13 @@ class CompareAcquisitionFunctions(object):
             batch_size = 256
             lr = 1e-3
             
-            model = PaperCNN()
+            model = PaperCNN().to(args.device)
             optimizer = optim.Adam(model.parameters(), lr = lr)
             
             # train and test data
             traindata = MNIST_CUSTOM(root='data/raw', train = True, transform = transforms.ToTensor())
             testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
+            train_idxs = np.arange(0,len(traindata), step = 1)
             
             # generate a balanced inital pool
             initial_idx = []
@@ -125,7 +126,9 @@ class CompareAcquisitionFunctions(object):
             # use subset if specified and make sure the initial pool is included
             if args.subset:
                 num_samples = 1500
-                train_idxs = np.arange(0,1500, 1) #np.random.randint(0, len(traindata), size = num_samples).tolist()
+                train_idxs = np.arange(0,num_samples,1).tolist() 
+                #train_idxs = np.random.randint(0, len(traindata), size = num_samples).tolist()
+                print(f'Using subset of size: {num_samples}')
 
             # generate validation set of 100 samples
             num_samples = 100
@@ -143,7 +146,7 @@ class CompareAcquisitionFunctions(object):
         # train on initial labeled pool and save model
         labeled_subset = Subset(traindata, initial_idx)
         labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
-        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, val = False, plot = False, printout = False)
+        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=100, val = False, plot = False, printout = False)
 
         state = {
             'state_dict': model.state_dict(),
@@ -151,19 +154,27 @@ class CompareAcquisitionFunctions(object):
         }
         torch.save(state, MODEL_PATH+args.dataset+'model.pth')
 
+        unlab_idxs = []
+        lab_idxs = []
+        
         for s in args.strat_list:
             print(f'STRATEGY: {s}')
             for i in range(args.n_iter):
                 print(f'ITER: {i+1:2d}')
                 torch.manual_seed(i)
                 
-                unlab_idxs = train_idxs
+                unlab_idxs.clear()
+                lab_idxs.clear()
+                
+                unlab_idxs.extend(train_idxs)
+                lab_idxs.extend(initial_idx)
+    
                 # load model trained on initial pool
                 if args.dataset == 'MNIST':
-                    model = PaperCNN()
+                    model = PaperCNN().to(args.device)
                     
                 if args.dataset == 'TwoMoons':
-                    model = MLP(dropout=args.dropout)
+                    model = MLP(dropout=args.dropout).to(args.device)
                     
                 optimizer = optim.Adam(model.parameters(), lr = lr)
 
@@ -172,14 +183,12 @@ class CompareAcquisitionFunctions(object):
                 optimizer.load_state_dict(state['optimizer'])
                 
                 TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
-                
-                lab_pool_idxs = initial_idx
+        
                 
                 for query in tqdm(range(args.num_queries)):
-                    
                     # quering data points            
                     unlab_pool_subset = Subset(traindata, unlab_idxs)
-                    unlab_pool_loader = DataLoader(unlab_pool_subset, batch_size=2000, num_workers=0, shuffle = False)
+                    unlab_pool_loader = DataLoader(unlab_pool_subset, batch_size=5000, num_workers=0, shuffle = False)
                     sample_idx = query_the_oracle(model, unlab_pool_loader, 
                                                             args.device,
                                                             T = args.T,
@@ -188,11 +197,14 @@ class CompareAcquisitionFunctions(object):
                                                             bald_method=args.bald_method
                                                             )
                     
+                    #for idx in sample_idx:
+                     #   unlab_idxs = np.delete(unlab_idxs, np.where(unlab_idxs == idx))
+
                     unlab_idxs = [x for x in unlab_idxs if (x != sample_idx).all()]
-                    lab_pool_idxs.extend(sample_idx)
+                    lab_idxs.extend(sample_idx)
                     
                     # train on labeled pool subset
-                    labeled_subset = Subset(traindata, lab_pool_idxs)
+                    labeled_subset = Subset(traindata, lab_idxs)
                     labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0,shuffle = False)
                     model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=num_epochs, val = False, plot = False, printout = False)
 

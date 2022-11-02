@@ -9,8 +9,6 @@ import torch.nn.functional as F
 
 def train(model, trainloader, optimizer, device, valloader = None, num_epochs = 100, val = False, plot = True, printout = True):
     
-    model.to(device)
-    
     # loss
     loss_fn = nn.CrossEntropyLoss()
     
@@ -95,7 +93,6 @@ def train(model, trainloader, optimizer, device, valloader = None, num_epochs = 
 
 def test(model, testloader, device, display=True):
     model.eval()
-    
     test_loss = 0
     n_correct = 0
     total = 0

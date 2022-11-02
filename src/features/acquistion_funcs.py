@@ -19,13 +19,13 @@ from src.features.utils import entropy_calc, bald_calc
 
 def random_query(data_loader, query_size=10):
     
-    sample_idx = []
+    idxs = []
     
     for X, y, idx in data_loader:
-        sample_idx.extend(idx.tolist())
+        idxs.extend(idx.tolist())
         
-    random.shuffle(sample_idx)
-    return sample_idx[0:query_size]
+    random.shuffle(idxs)
+    return np.asarray(idxs[0:query_size])
 
 
 def margin_query(model, device, data_loader, query_size=10):
