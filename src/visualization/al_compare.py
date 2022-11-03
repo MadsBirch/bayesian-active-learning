@@ -22,11 +22,6 @@ from src.models.train_model import train, test
 from src.features.acquistion_funcs import query_the_oracle
 from torchvision import datasets
 
-
-torch.manual_seed(0)
-np.random.seed(0)
-random.seed(0)
-
 class CompareAcquisitionFunctions(object):
     def __init__(self):
         parser = argparse.ArgumentParser(
@@ -49,8 +44,8 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--strat_list', nargs='+', default=['bald', 'margin', 'entropy', 'random'])
         parser.add_argument('--dataset', default= 'MNIST', type = str)
         parser.add_argument('--n_iter', default=3, type=int)
-        parser.add_argument('--num_queries', default=10, type=int)
-        parser.add_argument('--query_size', default=10, type=int)
+        parser.add_argument('--num_queries', default=20, type=int)
+        parser.add_argument('--query_size', default=49, type=int)
         parser.add_argument('--bald_method', default='MC_drop', type=str)
         parser.add_argument('--T', default=10, type=int)
         parser.add_argument('--dropout', default=0.3, type=float)
@@ -84,7 +79,6 @@ class CompareAcquisitionFunctions(object):
             model = MLP(dropout=args.dropout)
             optimizer = optim.Adam(model.parameters(), lr = lr)
 
-            
             # generate data
             X, y = make_moons(n_samples = 1000, noise = 0.2, random_state=9)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=9)
@@ -120,7 +114,7 @@ class CompareAcquisitionFunctions(object):
             traindata.reset_submask()
             
             if args.subset:
-                num_samples = 2000
+                num_samples = 10000
                 train_idxs = torch.randperm(num_samples)
                 traindata.update_submask(train_idxs)
             
@@ -221,12 +215,14 @@ class CompareAcquisitionFunctions(object):
         for s in args.strat_list:
             mean = query_dict[s]['acc_mean']
             std = query_dict[s]['acc_se']
-            plt.plot(x, mean, label = s)
+            if s == 'bald':
+                plt.plot(x, mean, label = s+f' ({args.bald_method})')
+            else:
+                plt.plot(x, mean, label = s)
             plt.legend()
             plt.title('Performance of Active Learning w. Different Acquisition Strategies')
             plt.xlabel('Number of Traning Points')
             plt.ylabel('Test Accuracy (%)')
-            plt.xticks(x, x)
             plt.fill_between(x, mean+std, mean-std, alpha = 0.4)
         plt.savefig(FIGURE_PATH+args.dataset+args.save_name+'.png')
         plt.show()
