@@ -34,6 +34,7 @@ class MNIST_CUSTOM(datasets.MNIST):
     def __init__(self, root, transform = transforms.ToTensor(), train=True):
         super().__init__(root, train, download=True, transform=transform)
         self.unlabeled_mask = np.ones(super().__len__())
+        self.subset_mask = np.ones(super().__len__())
         
     def __getitem__(self, idx):
         img, target = self.data[idx], int(self.targets[idx])
@@ -55,9 +56,14 @@ class MNIST_CUSTOM(datasets.MNIST):
         
     def reset_mask(self): 
         self.unlabeled_mask = np.ones((len(self.unlabeled_mask)))
+    
+    def update_submask(self, idx):
+        self.subset_mask[idx] = 0
         
-    def __len__(self) -> int:
-        return super().__len__()
+    def reset_submask(self): 
+        self.subset_mask = np.ones((len(self.subset_mask)))
+        
+        
         
 
 

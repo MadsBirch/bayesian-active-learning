@@ -56,7 +56,8 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--dropout', default=0.3, type=float)
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
-        parser.add_argument('--device', default='cpu', type=str)
+        parser.add_argument('--device', default='mps', type=str)
+        parser.add_argument('--subset', default=True, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
         
@@ -109,18 +110,25 @@ class CompareAcquisitionFunctions(object):
             batch_size = 256
             lr = 1e-3
             
-            model = PaperCNN()
+            model = PaperCNN().to(args.device)
             optimizer = optim.Adam(model.parameters(), lr = lr)
             
             # train and test data
             traindata = MNIST_CUSTOM(root='data/raw', train = True, transform = transforms.ToTensor())
             testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
-
+            
+            traindata.reset_submask()
+            
+            if args.subset:
+                num_samples = 2000
+                train_idxs = torch.randperm(num_samples)
+                traindata.update_submask(train_idxs)
+            
             # generate a balanced inital pool
             initial_idx = []
             for i in range(10):
                 initial_idx.extend(np.random.choice(np.where(traindata.targets ==i)[0], size=2, replace=False))
-
+            
             # generate validation set of 100 samples
             num_samples = 100
             random_indices = torch.randperm(num_samples)
@@ -161,7 +169,7 @@ class CompareAcquisitionFunctions(object):
                 
                 # load model trained on initial pool
                 if args.dataset == 'MNIST':
-                    model = PaperCNN()
+                    model = PaperCNN().to(args.device)
                     
                 if args.dataset == 'TwoMoons':
                     model = MLP(dropout=args.dropout)
@@ -170,13 +178,13 @@ class CompareAcquisitionFunctions(object):
 
                 state = torch.load(MODEL_PATH+args.dataset+'model.pth')
                 model.load_state_dict(state['state_dict'])
-                optimizer.load_state_dict(state['optimizer'])
+                #optimizer.load_state_dict(state['optimizer'])
                 
                 TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
                                 
                 for query in tqdm(range(args.num_queries)):
                     # get pool of unlabeled datapoints        
-                    unlabeled_idx = np.where(traindata.unlabeled_mask == 1)[0]
+                    unlabeled_idx = np.where((traindata.unlabeled_mask == 1) & (traindata.subset_mask == 0))[0]
                     unlabeled_subset  = Subset(traindata, unlabeled_idx)
                     unlab_pool_loader = DataLoader(unlabeled_subset, batch_size=2000, num_workers=0, shuffle=False)
                     
@@ -191,7 +199,7 @@ class CompareAcquisitionFunctions(object):
                     
                     # update labeled pool with queried data points
                     traindata.update_mask(sample_idx)
-                    labeled_idx = np.where(traindata.unlabeled_mask == 0)[0]
+                    labeled_idx = np.where((traindata.unlabeled_mask == 0) & (traindata.subset_mask == 0))[0]
                     
                     # train on labeled pool subset
                     labeled_subset = Subset(traindata, labeled_idx)
