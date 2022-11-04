@@ -98,8 +98,8 @@ def BALD_query(model, device, data_loader,
     if method == 'ensemble':
         for t in range(T):
             outputs_inner = []
-            optimizer = optim.Adam(model.parameters(), lr = 6e-4)
-            model = train(model, data_loader, optimizer, device, num_epochs = 1000, plot = False, printout = False)
+            optimizer = optim.Adam(model.parameters(), lr = 1e-4)
+            model, optimizer = train(model, data_loader, optimizer, device, num_epochs = 50, plot = False, printout = False)
             model.eval()
             with torch.no_grad():
                 for i, batch in enumerate(data_loader):
