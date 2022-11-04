@@ -146,7 +146,7 @@ class CompareAcquisitionFunctions(object):
         # train on initial labeled pool and save model
         labeled_subset = Subset(traindata, initial_idx)
         labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
-        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=100, val = False, plot = False, printout = False)
+        model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=100, val = True, plot = True, printout = False)
 
         state = {
             'state_dict': model.state_dict(),

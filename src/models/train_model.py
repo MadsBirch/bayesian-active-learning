@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-def train(model, trainloader, optimizer, device, valloader = None, num_epochs = 100, val = False, plot = True, printout = True):
+def train(model, trainloader, optimizer, device, valloader, num_epochs = 100, val = False, plot = True, printout = True):
     
     # loss
     loss_fn = nn.CrossEntropyLoss()
