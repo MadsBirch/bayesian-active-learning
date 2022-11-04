@@ -118,64 +118,60 @@ class CompareAcquisitionFunctions(object):
                 train_idxs = torch.randperm(num_samples)
                 traindata.update_submask(train_idxs)
             
-            # generate a balanced inital pool
-            initial_idx = []
-            for i in range(10):
-                initial_idx.extend(np.random.choice(np.where(traindata.targets ==i)[0], size=2, replace=False))
-            
             # generate validation set of 100 samples
             num_samples = 100
             random_indices = torch.randperm(num_samples)
             valdata = Subset(testdata, random_indices)
             
             # dataloaders
-            #trainloader = DataLoader(traindata, batch_size=batch_size, shuffle=False, num_workers=0)
             valloader = DataLoader(valdata, batch_size=batch_size, shuffle=False, num_workers=0)
             testloader = DataLoader(testdata, batch_size=batch_size, shuffle=False, num_workers=0)
-                    
-        # reset dataset
-        traindata.reset_mask()
-        traindata.update_mask(initial_idx)
         
-        # train model on initial pool and save to disc (load in later)
-        print(f'Training common model on initial pool...')
         
-        # train on initial labeled pool and save model
-        labeled_subset = Subset(traindata, initial_idx)
-        labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
-        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, val = False, plot = False, printout = False)
-
-        state = {
+        for i in range(args.n_iter):
+            print(f'ITER: {i+1:2d}')
+            torch.manual_seed(i)
+            
+            # generate a balanced inital pool
+            initial_idx = []
+            for r in range(10):
+                initial_idx.extend(np.random.choice(np.where(traindata.targets ==r)[0], size=2, replace=False))
+            
+            # reset dataset model and optimizer
+            traindata.reset_mask()
+            traindata.update_mask(initial_idx)
+            
+            # load model trained on initial pool
+            if args.dataset == 'MNIST':
+                model = PaperCNN().to(args.device)
+                
+            if args.dataset == 'TwoMoons':
+                model = MLP(dropout=args.dropout).to(args.device)
+            
+            # train model on initial pool and save to disc (load in later)
+            print(f'Training common model on initial pool...')
+            
+            # train on initial labeled pool and save model
+            labeled_subset = Subset(traindata, initial_idx)
+            labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
+            
+            optimizer = optim.Adam(model.parameters(), lr = lr)
+            model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, val = False, plot = False, printout = False)
+            
+            TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
+            
+            state = {
             'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict()
-        }
-        torch.save(state, MODEL_PATH+args.dataset+'model.pth')
-
-        for s in args.strat_list:
-            print(f'STRATEGY: {s}')
-            for i in range(args.n_iter):
-                print(f'ITER: {i+1:2d}')
-                torch.manual_seed(i)
+            }
+            torch.save(state, MODEL_PATH+args.dataset+'model_'+str(i)+'.pth')
                 
-                # reset dataset model and optimizer
-                traindata.reset_mask()
-                traindata.update_mask(initial_idx)
+            for s in args.strat_list:
+                print(f'STRATEGY: {s}')
                 
-                # load model trained on initial pool
-                if args.dataset == 'MNIST':
-                    model = PaperCNN().to(args.device)
-                    
-                if args.dataset == 'TwoMoons':
-                    model = MLP(dropout=args.dropout)
-                    
-                optimizer = optim.Adam(model.parameters(), lr = lr)
-
-                state = torch.load(MODEL_PATH+args.dataset+'model.pth')
+                state = torch.load(MODEL_PATH+args.dataset+'model_'+str(i)+'.pth')
                 model.load_state_dict(state['state_dict'])
-                #optimizer.load_state_dict(state['optimizer'])
-                
-                TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
-                                
+               
                 for query in tqdm(range(args.num_queries)):
                     # get pool of unlabeled datapoints        
                     unlabeled_idx = np.where((traindata.unlabeled_mask == 1) & (traindata.subset_mask == 0))[0]
@@ -199,12 +195,14 @@ class CompareAcquisitionFunctions(object):
                     labeled_subset = Subset(traindata, labeled_idx)
                     labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0,shuffle = False)
                     model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=num_epochs, val = False, plot = False, printout = False)
-
+                    acc = test(model, testloader, args.device, display = False)
                     # test model
+                    print(acc)
                     TEST_ACC[i,query+1] = test(model, testloader, args.device, display = False)
-
+                    print(TEST_ACC[i,:])
             query_dict[s]['acc_se'] = TEST_ACC.std(0)/np.sqrt(args.n_iter)
             query_dict[s]['acc_mean']  = TEST_ACC.mean(0)
+            print(query_dict)
 
         x = np.linspace(start = args.init_pool_size,
                     stop = args.num_queries*args.query_size, 

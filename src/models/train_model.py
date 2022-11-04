@@ -109,7 +109,7 @@ def test(model, testloader, device, display=True):
             X, y= X.to(device), y.to(device)
             out = model(X)
             
-            test_loss += loss_fn(out.squeeze(), y.squeeze()).item()  # sum up batch loss
+            test_loss += loss_fn(out, y).item()  # sum up batch loss
             preds = torch.argmax(F.softmax(out, dim = 1),dim=1)
             n_correct += (preds == y).sum().item()
             total += y.size(0)
