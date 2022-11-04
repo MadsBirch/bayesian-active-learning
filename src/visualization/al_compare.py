@@ -44,15 +44,15 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--strat_list', nargs='+', default=['bald', 'margin', 'entropy', 'random'])
         parser.add_argument('--dataset', default= 'MNIST', type = str)
         parser.add_argument('--n_iter', default=3, type=int)
-        parser.add_argument('--num_queries', default=20, type=int)
-        parser.add_argument('--query_size', default=49, type=int)
+        parser.add_argument('--num_queries', default=10, type=int)
+        parser.add_argument('--query_size', default=100, type=int)
         parser.add_argument('--bald_method', default='MC_drop', type=str)
         parser.add_argument('--T', default=10, type=int)
         parser.add_argument('--dropout', default=0.3, type=float)
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
         parser.add_argument('--device', default='mps', type=str)
-        parser.add_argument('--subset', default=True, type=bool)
+        parser.add_argument('--subset', default=False, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
         
@@ -110,18 +110,16 @@ class CompareAcquisitionFunctions(object):
             # train and test data
             traindata = MNIST_CUSTOM(root='data/raw', train = True, transform = transforms.ToTensor())
             testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
-            
-            traindata.reset_submask()
-            
+                        
             if args.subset:
-                num_samples = 10000
+                num_samples = 60000
                 train_idxs = torch.randperm(num_samples)
                 traindata.update_submask(train_idxs)
             
             # generate a balanced inital pool
             initial_idx = []
-            for i in range(10):
-                initial_idx.extend(np.random.choice(np.where(traindata.targets ==i)[0], size=2, replace=False))
+            for r in range(10):
+                initial_idx.extend(np.random.choice(np.where(traindata.targets ==r)[0], size=2, replace=False))
             
             # generate validation set of 100 samples
             num_samples = 100
@@ -143,11 +141,11 @@ class CompareAcquisitionFunctions(object):
         # train on initial labeled pool and save model
         labeled_subset = Subset(traindata, initial_idx)
         labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
-        model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, val = False, plot = False, printout = False)
-
+        model = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=num_epochs, val = True, plot = True, printout = False)
+        
         state = {
-            'state_dict': model.state_dict(),
-            'optimizer': optimizer.state_dict()
+            'state_dict': model.state_dict()
+            #'optimizer': optimizer.state_dict()
         }
         torch.save(state, MODEL_PATH+args.dataset+'model.pth')
 

@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-def train(model, trainloader, optimizer, device, valloader = None, num_epochs = 100, val = False, plot = True, printout = True):
+def train(model, trainloader, optimizer, device, valloader, num_epochs = 100, val = False, plot = True, printout = True):
     
     model.to(device)
     
@@ -89,7 +89,7 @@ def train(model, trainloader, optimizer, device, valloader = None, num_epochs = 
         ax2.set_title('ACCURACY')
         plt.show()
     
-    return model, optimizer
+    return model
     
     
 
