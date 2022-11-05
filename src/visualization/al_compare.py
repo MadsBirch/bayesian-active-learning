@@ -1,3 +1,5 @@
+PYTHONPATH="/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning:$PYTHONPATH"
+
 import argparse
 from multiprocessing import pool
 import sys
@@ -21,7 +23,6 @@ from src.data.data import TwoMoons, MNIST_CUSTOM
 from src.models.train_model import train, test
 from src.features.acquistion_funcs import query_the_oracle
 from torchvision import datasets
-
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -50,14 +51,14 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--dataset', default= 'MNIST', type = str)
         parser.add_argument('--n_iter', default=3, type=int)
         parser.add_argument('--num_queries', default=10, type=int)
-        parser.add_argument('--query_size', default=10, type=int)
+        parser.add_argument('--query_size', default=100, type=int)
         parser.add_argument('--bald_method', default='MC_drop', type=str)
         parser.add_argument('--T', default=10, type=int)
         parser.add_argument('--dropout', default=0.3, type=float)
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
         parser.add_argument('--device', default='mps', type=str)
-        parser.add_argument('--subset', default=True, type=bool)
+        parser.add_argument('--subset', default=False, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
         
