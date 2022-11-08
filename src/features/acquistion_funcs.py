@@ -98,7 +98,7 @@ def BALD_query(model, device, data_loader,
     if method == 'ensemble':
         for t in range(T):
             outputs_inner = []
-            optimizer = optim.Adam(model.parameters(), lr = 1e-4)
+            optimizer = optim.Adam(model.parameters(), lr = 1e-3)
             model, optimizer = train(model, data_loader, optimizer, device, num_epochs = 50, plot = False, printout = False)
             model.eval()
             with torch.no_grad():
@@ -138,3 +138,15 @@ def query_the_oracle(model,
         sample_idx = BALD_query(model, device, poolloader, query_size = query_size, T = T, method = bald_method)
     
     return sample_idx
+
+
+class BALD():
+    def __init__(self):
+        pass
+        
+    def get_samples(self):
+        pass
+    
+    def get_grid(self):
+        pass
+        

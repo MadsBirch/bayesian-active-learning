@@ -1,80 +1,10 @@
-alabaster==0.7.12
-arrow==1.2.3
-asdfghjkl==0.1a2
-awscli==1.25.67
-Babel==2.10.3
-backpack-for-pytorch==1.5.0
-binaryornot==0.4.4
-botocore==1.27.66
-brotlipy @ file:///Users/runner/miniforge3/conda-bld/brotlipy_1648854242877/work
-certifi==2022.6.15
-cffi @ file:///Users/runner/miniforge3/conda-bld/cffi_1656782892388/work
-chardet==5.0.0
-charset-normalizer @ file:///home/conda/feedstock_root/build_artifacts/charset-normalizer_1655906222726/work
 click==8.1.3
-colorama==0.4.4
-conda==4.13.0
-conda-package-handling @ file:///Users/runner/miniforge3/conda-bld/conda-package-handling_1649385125392/work
-cookiecutter==2.1.1
-coverage==6.4.4
-cryptography @ file:///Users/runner/miniforge3/conda-bld/cryptography_1657174295336/work
-docopt==0.6.2
-docutils==0.16
-einops==0.5.0
-filelock==3.8.0
-flake8==5.0.4
-huggingface-hub==0.10.0
-idna @ file:///home/conda/feedstock_root/build_artifacts/idna_1642433548627/work
-imagesize==1.4.1
-importlib-metadata==4.12.0
-Jinja2==3.1.2
-jinja2-time==0.2.0
-jmespath==1.0.1
-laplace-torch==0.1a2
-MarkupSafe==2.1.1
-mccabe==0.7.0
-numpy==1.23.3
-packaging==21.3
-Pillow==9.2.0
-pipreqs==0.4.11
-pyasn1==0.4.8
-pycodestyle==2.9.1
-pycosat @ file:///Users/runner/miniforge3/conda-bld/pycosat_1649384941891/work
-pycparser @ file:///home/conda/feedstock_root/build_artifacts/pycparser_1636257122734/work
-pyflakes==2.5.0
-Pygments==2.13.0
-pyOpenSSL @ file:///home/conda/feedstock_root/build_artifacts/pyopenssl_1643496850550/work
-pyparsing==3.0.9
-PySocks @ file:///Users/runner/miniforge3/conda-bld/pysocks_1648857374584/work
-python-dateutil==2.8.2
+matplotlib==3.6.2
+numpy==1.23.4
+Pillow==9.3.0
 python-dotenv==0.21.0
-python-slugify==6.1.2
-pytz==2022.2.1
-PyYAML==5.4.1
-regex==2022.9.13
-requests @ file:///home/conda/feedstock_root/build_artifacts/requests_1656534056640/work
-rsa==4.7.2
-ruamel-yaml-conda @ file:///Users/runner/miniforge3/conda-bld/ruamel_yaml_1653464548430/work
-s3transfer==0.6.0
-six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
-snowballstemmer==2.2.0
-Sphinx==5.1.1
-sphinxcontrib-applehelp==1.0.2
-sphinxcontrib-devhelp==1.0.2
-sphinxcontrib-htmlhelp==2.0.0
-sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-qthelp==1.0.3
-sphinxcontrib-serializinghtml==1.1.5
--e git+ssh://git@github.com/MadsBirch/MLOps_1.git@06ad303bed99450d4696a00a255b2b82ef34dee8#egg=src&subdirectory=../../MLOps/MLOps_1/mlops_week_1
-text-unidecode==1.3
-tokenizers==0.12.1
-torch==1.12.1
-torch-summary==1.4.5
-torchaudio==0.12.1
-torchvision==0.13.1
-tqdm @ file:///home/conda/feedstock_root/build_artifacts/tqdm_1649051611147/work
-transformers==4.22.2
-typing_extensions==4.3.0
-urllib3 @ file:///home/conda/feedstock_root/build_artifacts/urllib3_1658789158161/work
-yarg==0.1.9
-zipp==3.8.1
+scikit_learn==1.1.3
+setuptools==65.5.1
+torch==1.13.0
+torchvision==0.14.0
+tqdm==4.64.1

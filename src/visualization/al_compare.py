@@ -1,18 +1,16 @@
 import argparse
-from multiprocessing import pool
 import sys
 from tqdm import tqdm
+import seaborn as sns
 
-import random
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_moons
 from sklearn.model_selection import train_test_split
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
+
 from torch.utils.data import DataLoader, Subset
 import torchvision.transforms as transforms
 
@@ -20,7 +18,7 @@ from src.models.model import MLP, PaperCNN
 from src.data.data import TwoMoons, MNIST_CUSTOM
 from src.models.train_model import train, test
 from src.features.acquistion_funcs import query_the_oracle
-from torchvision import datasets
+
 
 class CompareAcquisitionFunctions(object):
     def __init__(self):
@@ -46,17 +44,17 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--n_iter', default=3, type=int)
         parser.add_argument('--num_queries', default=20, type=int)
         parser.add_argument('--query_size', default=49, type=int)
-        parser.add_argument('--bald_method', default='MC_drop', type=str)
-        parser.add_argument('--T', default=10, type=int)
+        parser.add_argument('--bald_method', default='ensemble', type=str)
+        parser.add_argument('--T', default=3, type=int)
         parser.add_argument('--dropout', default=0.3, type=float)
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
         parser.add_argument('--device', default='mps', type=str)
-        parser.add_argument('--subset', default=True, type=bool)
+        parser.add_argument('--subset', default=False, type=bool)
         
         args = parser.parse_args(sys.argv[2:])
         
-        print(f"Using device: {args.device}")
+        print(f"[INFO] Using device: {args.device}")
         
         FIGURE_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/reports/figures/al_compare/'
         MODEL_PATH = '/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning/models/'
@@ -114,9 +112,11 @@ class CompareAcquisitionFunctions(object):
             traindata.reset_submask()
             
             if args.subset:
-                num_samples = 10000
+                num_samples = 5000
                 train_idxs = torch.randperm(num_samples)
                 traindata.update_submask(train_idxs)
+            else:
+                traindata.no_subset()
             
             # generate validation set of 100 samples
             num_samples = 100
@@ -136,7 +136,7 @@ class CompareAcquisitionFunctions(object):
             initial_idx = []
             for r in range(10):
                 initial_idx.extend(np.random.choice(np.where(traindata.targets ==r)[0], size=2, replace=False))
-            
+
             # reset dataset model and optimizer
             traindata.reset_mask()
             traindata.update_mask(initial_idx)
@@ -149,7 +149,7 @@ class CompareAcquisitionFunctions(object):
                 model = MLP(dropout=args.dropout).to(args.device)
             
             # train model on initial pool and save to disc (load in later)
-            print(f'Training common model on initial pool...')
+            print(f'[INFO] Training common model on initial pool...')
             
             # train on initial labeled pool and save model
             labeled_subset = Subset(traindata, initial_idx)
@@ -164,12 +164,15 @@ class CompareAcquisitionFunctions(object):
             'state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict()
             }
-            torch.save(state, MODEL_PATH+args.dataset+'model_'+str(i)+'.pth')
+            torch.save(state, MODEL_PATH+args.dataset+'_model_'+str(i)+'.pth')
                 
             for s in args.strat_list:
                 print(f'STRATEGY: {s}')
                 
-                state = torch.load(MODEL_PATH+args.dataset+'model_'+str(i)+'.pth')
+                traindata.reset_mask()
+                traindata.update_mask(initial_idx)
+                
+                state = torch.load(MODEL_PATH+args.dataset+'_model_'+str(i)+'.pth')
                 model.load_state_dict(state['state_dict'])
                
                 for query in tqdm(range(args.num_queries)):
@@ -196,13 +199,12 @@ class CompareAcquisitionFunctions(object):
                     labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0,shuffle = False)
                     model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=num_epochs, val = False, plot = False, printout = False)
                     acc = test(model, testloader, args.device, display = False)
+                    
                     # test model
-                    print(acc)
                     TEST_ACC[i,query+1] = test(model, testloader, args.device, display = False)
-                    print(TEST_ACC[i,:])
-            query_dict[s]['acc_se'] = TEST_ACC.std(0)/np.sqrt(args.n_iter)
-            query_dict[s]['acc_mean']  = TEST_ACC.mean(0)
-            print(query_dict)
+                    
+                query_dict[s]['acc_se'] = TEST_ACC.std(0)/np.sqrt(args.n_iter)
+                query_dict[s]['acc_mean']  = TEST_ACC.mean(0)
 
         x = np.linspace(start = args.init_pool_size,
                     stop = args.num_queries*args.query_size, 
@@ -210,20 +212,22 @@ class CompareAcquisitionFunctions(object):
                     dtype=int)
         
         plt.figure(figsize=(10,6))
-        for s in args.strat_list:
-            mean = query_dict[s]['acc_mean']
-            std = query_dict[s]['acc_se']
-            if s == 'bald':
-                plt.plot(x, mean, label = s+f' ({args.bald_method})')
-            else:
-                plt.plot(x, mean, label = s)
-            plt.legend()
-            plt.title('Performance of Active Learning w. Different Acquisition Strategies')
-            plt.xlabel('Number of Traning Points')
-            plt.ylabel('Test Accuracy (%)')
-            plt.fill_between(x, mean+std, mean-std, alpha = 0.4)
-        plt.savefig(FIGURE_PATH+args.dataset+args.save_name+'.png')
-        plt.show()
+        clrs = sns.color_palette("husl", len(args.strat_list))
+        with sns.axes_style("darkgrid"):
+            for i, s in enumerate(args.strat_list):
+                mean = query_dict[s]['acc_mean']
+                std = query_dict[s]['acc_se']
+                if s == 'bald':
+                    plt.plot(x, mean, label = s+f' ({args.bald_method})',  c=clrs[i])
+                else:
+                    plt.plot(x, mean, label = s,  c=clrs[i])
+                plt.legend()
+                plt.title('Performance of Active Learning w. Different Acquisition Strategies')
+                plt.xlabel('Number of Traning Points')
+                plt.ylabel('Test Accuracy (%)')
+                plt.fill_between(x, mean+std, mean-std, alpha=0.2, facecolor=clrs[i])
+            plt.savefig(FIGURE_PATH+args.dataset+args.save_name+'.png')
+            plt.show()
         
         
     def plot_grid(self):

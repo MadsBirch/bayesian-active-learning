@@ -1,4 +1,4 @@
-.PHONY: clean data lint requirements sync_data_to_s3 sync_data_from_s3
+.PHONY:requirements compare
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -24,6 +24,10 @@ endif
 requirements: test_environment
 	$(PYTHON_INTERPRETER) -m pip install -U pip setuptools wheel
 	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
+	$(PYTHON_INTERPRETER) -m pip install -e .
+
+compare: requirements
+	$(PYTHON_INTERPRETER) src/visualization/al_compare.py plot_curve
 
 ## Make Dataset
 data: requirements
