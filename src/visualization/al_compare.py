@@ -1,3 +1,5 @@
+PYTHONPATH="/Users/madsbirch/Documents/4_semester/BAL/bayesian-active-learning:$PYTHONPATH"
+
 import argparse
 from multiprocessing import pool
 import sys
@@ -112,7 +114,7 @@ class CompareAcquisitionFunctions(object):
             testdata = MNIST_CUSTOM(root='data/raw', train = False, transform = transforms.ToTensor())
                         
             if args.subset:
-                num_samples = 60000
+                num_samples = 5000
                 train_idxs = torch.randperm(num_samples)
                 traindata.update_submask(train_idxs)
             
