@@ -42,10 +42,10 @@ class CompareAcquisitionFunctions(object):
         parser.add_argument('--strat_list', nargs='+', default=['bald', 'margin', 'entropy', 'random'])
         parser.add_argument('--dataset', default= 'MNIST', type = str)
         parser.add_argument('--n_iter', default=3, type=int)
-        parser.add_argument('--num_queries', default=20, type=int)
-        parser.add_argument('--query_size', default=49, type=int)
-        parser.add_argument('--bald_method', default='ensemble', type=str)
-        parser.add_argument('--T', default=3, type=int)
+        parser.add_argument('--num_queries', default=10, type=int)
+        parser.add_argument('--query_size', default=100, type=int)
+        parser.add_argument('--bald_method', default='MC_drop', type=str)
+        parser.add_argument('--T', default=30, type=int)
         parser.add_argument('--dropout', default=0.3, type=float)
         parser.add_argument('--init_pool_size', default=20, type=int)
         parser.add_argument('--save_name', default='al_compare', type=str)
@@ -213,7 +213,7 @@ class CompareAcquisitionFunctions(object):
         
         plt.figure(figsize=(10,6))
         clrs = sns.color_palette("husl", len(args.strat_list))
-        with sns.axes_style("darkgrid"):
+        with sns.axes_style("whitegrid"):
             for i, s in enumerate(args.strat_list):
                 mean = query_dict[s]['acc_mean']
                 std = query_dict[s]['acc_se']
