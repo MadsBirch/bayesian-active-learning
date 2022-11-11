@@ -62,6 +62,9 @@ class MNIST_CUSTOM(datasets.MNIST):
         
     def reset_submask(self): 
         self.subset_mask = np.ones((len(self.subset_mask)))
+    
+    def no_subset(self):
+        self.subset_mask = np.zeros((len(self.subset_mask)))
         
         
         
