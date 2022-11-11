@@ -1,28 +1,21 @@
-from random import shuffle
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
+from toma import toma
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
-from sklearn.datasets import make_moons
-
-import random
 
 from src.models.train_model import train
-from src.models.model import MLP
 
 
-def entropy_calc(outputs):
+def compute_entropy(outputs):
     outputs = torch.cat(outputs, dim = 0)
     
     H = (-outputs*torch.log(outputs + 1e-10)).sum(1)
     return H
 
-def bald_calc(outputs):
+def compute_bald(outputs):
     outputs = torch.stack(outputs, dim = -1)
     pc = outputs.mean(2)
     
@@ -30,6 +23,45 @@ def bald_calc(outputs):
     E_H = -(outputs*torch.log(outputs + 1e-10)).sum(1).mean(1)
     bald = H - E_H
     return bald
+
+
+def compute_conditional_entropy(probs_N_K_C: torch.Tensor) -> torch.Tensor:
+    N, K, C = probs_N_K_C.shape
+
+    entropies_N = torch.empty(N, dtype=torch.double)
+
+    pbar = tqdm(total=N, desc="Conditional Entropy", leave=False)
+
+    def compute(probs_n_K_C, start: int, end: int):
+        nats_n_K_C = probs_n_K_C * torch.log(probs_n_K_C)
+        nats_n_K_C[probs_n_K_C == 0] = 0.0
+
+        entropies_N[start:end].copy_(-torch.sum(nats_n_K_C, dim=(1, 2)) / K)
+        pbar.update(end - start)
+
+    pbar.close()
+
+    return entropies_N
+
+
+def compute_entropy(probs_N_K_C: torch.Tensor) -> torch.Tensor:
+    N, K, C = probs_N_K_C.shape
+
+    entropies_N = torch.empty(N, dtype=torch.double)
+
+    pbar = tqdm(total=N, desc="Entropy", leave=False)
+
+    def compute(probs_n_K_C, start: int, end: int):
+        mean_probs_n_C = probs_n_K_C.mean(dim=1)
+        nats_n_C = mean_probs_n_C * torch.log(mean_probs_n_C)
+        nats_n_C[mean_probs_n_C == 0] = 0.0
+
+        entropies_N[start:end].copy_(-torch.sum(nats_n_C, dim=1))
+        pbar.update(end - start)
+
+    pbar.close()
+
+    return entropies_N
 
     
 ### grids ###
