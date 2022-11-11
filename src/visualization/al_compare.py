@@ -156,7 +156,7 @@ class CompareAcquisitionFunctions(object):
             labeled_loader = DataLoader(labeled_subset, batch_size=batch_size, num_workers=0, shuffle = False)
             
             optimizer = optim.Adam(model.parameters(), lr = lr)
-            model, optimizer = train(model, labeled_loader, optimizer, args.device, num_epochs=num_epochs, val = False, plot = False, printout = False)
+            model, optimizer = train(model, labeled_loader, optimizer, args.device, valloader, num_epochs=num_epochs, val = False, plot = False, printout = False)
             
             TEST_ACC[i,0] = test(model, testloader, args.device, display = False)
             
