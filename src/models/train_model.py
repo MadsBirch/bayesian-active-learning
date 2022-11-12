@@ -8,6 +8,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 def train(model, trainloader, optimizer, device, valloader = None, num_epochs = 100, val = False, plot = True, printout = True):
+    """Trains a model and optionally performs validation as well"""
     
     model.to(device)
     
