@@ -125,6 +125,7 @@ def BALD_query(device,
     idxs = []
     outputs = []
     
+    ### CALCULATE LOGITS BOX ###
     if method == 'MC_drop':
         model.train()
         with torch.no_grad():
@@ -155,8 +156,9 @@ def BALD_query(device,
     sorted_pool = np.asarray(-scores.detach().cpu()).argsort()
     
     idxs = indices[sorted_pool][:query_size]
+    
+    # these scores are not correct
     scores = sorted_pool[:query_size]
-    print(scores)
     
     return QueryBatch(idxs, scores)
 

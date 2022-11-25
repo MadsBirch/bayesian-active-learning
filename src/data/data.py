@@ -46,10 +46,10 @@ class ActiveLearningDataset():
         return indices
     
     def acquire_samples(self, pool_indices):
-        indices = self.get_dataset_indices(pool_indices)
+        #indices = self.get_dataset_indices(pool_indices)
 
-        self.training_mask[indices] = True
-        self.pool_mask[indices] = False
+        self.training_mask[pool_indices] = True
+        self.pool_mask[pool_indices] = False
         self._update_indices()
         
     def remove_from_pool(self, pool_indices):
@@ -63,7 +63,7 @@ class ActiveLearningDataset():
         pool_indices = torch.randperm(len(self.pool_dataset))[:size]
         return pool_indices
         
-    def extract_dataset(self, size):
+    def extract_dataset_from_pool(self, size):
         """Extract a dataset randomly from the available dataset and make those indices unavailable."""
         return self.extract_dataset_from_indices(self.get_random_pool_indices(size))
 

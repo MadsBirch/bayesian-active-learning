@@ -29,6 +29,9 @@ requirements: test_environment
 compare: requirements
 	$(PYTHON_INTERPRETER) src/visualization/al_compare.py plot_curve
 
+batchbald: requirements
+	$(PYTHON_INTERPRETER) src/visualization/run_batchbald.py
+
 ## Make Dataset
 data: requirements
 	$(PYTHON_INTERPRETER) src/data/make_dataset.py data/raw data/processed
