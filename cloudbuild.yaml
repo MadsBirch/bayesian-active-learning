@@ -1,5 +1,5 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/festive-magpie-369216/first-image', '.']
+  args: ['build', '-t', 'gcr.io/bayesian-al/batchbald', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/festive-magpie-369216/first-image']
+  args: ['push', 'gcr.io/bayesian-al/batchbald']
