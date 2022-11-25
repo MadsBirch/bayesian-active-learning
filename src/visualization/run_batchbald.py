@@ -116,6 +116,7 @@ pbar = tqdm(
 model = BayesianCNN(num_classes).to(device=device)  # initialise model
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
+
 while True:    
     test_dict["dataset_len"].append(len(active_learning_data.training_dataset))
 
@@ -123,6 +124,7 @@ while True:
     # Train
     for data, target in tqdm(train_loader, desc="Training", leave=False):
         data = data.to(device=device)
+        assert data.device == torch.device("cuda")
         target = target.to(device=device)
 
         optimizer.zero_grad()
