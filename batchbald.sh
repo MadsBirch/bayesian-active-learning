@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BUCKET_NAME=bal-bucket
-JOB_NAME=job_5
+JOB_NAME=assert_cuda
 JOB_DIR=gs://${BUCKET_NAME}/output/
 
 gcloud ai-platform jobs submit training ${JOB_NAME} \

@@ -10,7 +10,6 @@ import pickle
 
 from src.models.model import BayesianCNN
 
-
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -206,4 +205,4 @@ final_test_accs.append(test_accs)
 final_indices.append(added_indices)
 
 with open("test_dict", "wb") as fp:
-        pickle.dump(test_dict, fp)
+    pickle.dump(test_dict, fp)
