@@ -70,8 +70,8 @@ num_initial_samples = 20  # Number of initial samples required
 num_classes = 10  # Total classes in MNIST dataset
 
 # get an active learning dataset
-train_dataset = MNIST(root='./data/raw', train=True, transform=transforms.ToTensor())
-test_dataset = MNIST(root='./data/raw', train=False, transform=transforms.ToTensor())
+train_dataset = MNIST(root='./data/raw', train=True, download = True, transform=transforms.ToTensor())
+test_dataset = MNIST(root='./data/raw', train=False, download = True, transform=transforms.ToTensor())
 
 # Generates 20 samples (2 from each class) and returns their indices
 initial_samples = active_learning.get_balanced_sample_indices(
