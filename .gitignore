@@ -77,6 +77,7 @@ target/
 
 # exclude data from source control by default
 /models
+data/raw/MNIST/
 
 # Mac OS-specific storage files
 .DS_Store

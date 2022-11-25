@@ -1,6 +1,4 @@
 import math
-import matplotlib.pyplot as plt
-import seaborn as sns
 import random
 import numpy as np
 import os
@@ -18,7 +16,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from batchbald_redux import (
+from src.batchbald_redux import (
     active_learning,
     batchbald,
     consistent_mc_dropout,
@@ -43,7 +41,7 @@ algo_list = ["batchbald"]
 final_test_accs = []
 final_indices = []
 
-max_training_samples = 30  # Maximum limit of train samples needed
+max_training_samples = 28  # Maximum limit of train samples needed
 num_inference_samples = 10
 num_test_inference_samples = 5
 num_samples = 100000  # Total number of samples
@@ -53,7 +51,7 @@ batch_size = 64  # Train loader Batch size
 scoring_batch_size = 128  # Pool Loader Batch size
 training_iterations = 4096 * 6
 
-acquisition_batch_size = 10
+acquisition_batch_size = 4
 
 
 seed_value = 0
