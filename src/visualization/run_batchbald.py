@@ -9,7 +9,6 @@ from tqdm import tqdm
 import pickle
 
 from src.models.model import BayesianCNN
-from google.cloud import storage
 
 
 import torch
@@ -205,13 +204,4 @@ final_test_accs.append(test_accs)
 final_indices.append(added_indices)
 
 with open("test_dict", "wb") as fp:
-        pickle.dump(test_dict, fp)
-        
-# save final to gcp bucket model
-storage_client = storage.Client("bal-bucket")
-bucket = storage_client.bucket("bal-bucket")
-blob = bucket.blob("output/")
-
-with blob.open("wb", ignore_flush=True) as f:
-    with open("test_dict", "wb") as fp:
         pickle.dump(test_dict, fp)
