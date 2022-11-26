@@ -23,7 +23,7 @@ RUN apt install build-essential -y --no-install-recommends
 # Set the working directory in our container and add commands that install the dependencies:
 WORKDIR /
 RUN pip install -r requirements.txt --no-cache-dir
-RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu117
+RUN pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
 
 # Name our training script as the entrypoint (CMD) for our docker image. The entrypoint is the application that we want to run when the image is being executed:
 ENTRYPOINT ["make", "batchbald"]

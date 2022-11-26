@@ -39,7 +39,7 @@ algo_list = ["batchbald"]
 final_test_accs = []
 final_indices = []
 
-max_training_samples = 28  # Maximum limit of train samples needed
+max_training_samples = 50  # Maximum limit of train samples needed
 num_inference_samples = 10
 num_test_inference_samples = 5
 num_samples = 100000  # Total number of samples
@@ -123,7 +123,7 @@ while True:
     # Train
     for data, target in tqdm(train_loader, desc="Training", leave=False):
         data = data.to(device=device)
-        assert data.device == torch.device("cuda")
+        #assert data.device == torch.device("cuda")
         target = target.to(device=device)
 
         optimizer.zero_grad()
@@ -177,7 +177,7 @@ while True:
 
             lower = i * pool_loader.batch_size
             upper = min(lower + pool_loader.batch_size, N)
-            logits_N_K_C[lower:upper].copy_(model(data, num_inference_samples).double(), non_blocking=True)
+            logits_N_K_C[lower:upper].copy_(model(data, num_inference_samples), non_blocking=True)
 
     with torch.no_grad():
         candidate_batch = batchbald.get_batchbald_batch(
@@ -194,7 +194,7 @@ while True:
     )  # Returns indices for candidate batch
 
     print("Dataset indices: ", dataset_indices)
-    # print("Scores: ", candidate_batch.scores)
+    print("Scores: ", candidate_batch.scores)
     print("Labels: ", targets[candidate_batch.indices])
 
     active_learning_data.acquire(candidate_batch.indices)  # add the new indices to training dataset
