@@ -17,7 +17,7 @@ The goal of this project was to replicate the results of the paper *Deep Bayesia
 
 <br />
 <figure>
-    <img src="https://github.com/MadsBirch/bayesian-active-learning/blob/master/reports/figures/figures/AL_MNIST.png"  width="100%">
+    <img src="https://github.com/MadsBirch/bayesian-active-learning/blob/master/reports/figures/figures/AL_MNIST.png"  width="80%">
     <figcaption> <em>Fig. 1 - MNIST test accuracy as a function of number of samples quired from the unlaballed pool. Three acquisition functions were implemented; <em>random, BALD and BatchBALD.</em></figcaption>
 </figure>
 
