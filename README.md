@@ -22,6 +22,7 @@ The goal of this project was to replicate the results of the paper *Deep Bayesia
 </figure>
 
 ## Project Organization
+
 ------------
 
     ├── LICENSE
