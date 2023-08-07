@@ -1,4 +1,5 @@
-# Bayesian Active Learning
+bayesian-active-learning
+==============================
 
 This is the repository for the project on Bayesian Active Learning.
 
@@ -15,17 +16,11 @@ This is the repository for the project on Bayesian Active Learning.
 
 <br />
 <figure>
-    <img src="https://github.com/MadsBirch/bayesian-active-learning/blob/master/reports/figures/figures/MNIST_prbml.png"  width="50%">
+    <img src="https://github.com/MadsBirch/bayesian-active-learning/blob/master/reports/figures/figures/AL_MNIST.png"  width="50%">
     <figcaption> <em>Fig. 1 - . </em></figcaption>
 </figure>
 
-
-bayesian-active-learning
-==============================
-
-A short description of the project.
-
-Project Organization
+## Project Organization
 ------------
 
     ├── LICENSE
