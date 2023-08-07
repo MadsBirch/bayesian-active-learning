@@ -16,8 +16,8 @@ This is the repository for the project on Bayesian Active Learning.
 
 <br />
 <figure>
-    <img src="https://github.com/MadsBirch/bayesian-active-learning/blob/master/reports/figures/figures/AL_MNIST.png"  width="50%">
-    <figcaption> <em>Fig. 1 - . </em></figcaption>
+    <img src="https://github.com/MadsBirch/bayesian-active-learning/blob/master/reports/figures/figures/AL_MNIST.png"  width="75%">
+    <figcaption> <em>Fig. 1 - MNIST test accuracy as a function of number of samples quired from the unlaballed pool. Three acquisition functions were implemented; *random, BALD and BatchBALD.*</figcaption>
 </figure>
 
 ## Project Organization
