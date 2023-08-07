@@ -13,6 +13,7 @@ This is the repository for the project on Bayesian Active Learning.
 
 
 ## Results
+The goal of this project was to replicate the results of the paper *Deep Bayesian Active Learning with Image Data* (https://arxiv.org/abs/1703.02910). Similar to Gal et al 2017, I found that implementing an active learning framework, selecting the most informative data points, outperformed a standard random sampling strategy (Fig. 1). The BALD acquisition function assigns the highest scores to data points which are most informative w.r.t. the model parameters. 
 
 <br />
 <figure>
