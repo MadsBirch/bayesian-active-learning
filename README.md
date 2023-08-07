@@ -1,3 +1,25 @@
+# Bayesian Active Learning
+
+This is the repository for the project on Bayesian Active Learning.
+
+
+## Motivation
+- Modern Deep Neural Networks need large amount of data to perform well but annotating data is expensive. Active Learning presents a solution by selecting the most informative data samples to annotate.
+
+- Batch aware methods are needed as Deep Neural Networks are data hungry and training the model is resource heavy. Hence, training the model again after adding only one new sample to the training set is not feasible. For that reason we need batch aware methods, selecting a diverse set of samples. We cannot simply choose the top ranking samples as datasets often contain many near duplicate samples. BatchBALD is an example of a batch aware methods, where the correlation between the query batch samples are taken into account.
+
+- Labelling all samples is expensive and leads to redundant labels. Labelling randomly also leads to redundant samples. By labelling actively the aim is to reduce the number of redundant samples by querying samples that maximise information gain w.r.t. model parameters.
+
+
+## Results
+
+<br />
+<figure>
+    <img src="https://github.com/MadsBirch/bayesian-active-learning/blob/master/reports/figures/figures/MNIST_prbml.png"  width="50%">
+    <figcaption> <em>Fig. 1 - . </em></figcaption>
+</figure>
+
+
 bayesian-active-learning
 ==============================
 
