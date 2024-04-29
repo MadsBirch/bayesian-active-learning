@@ -42,8 +42,7 @@ Setup:
 Findings:
 - AL learn faster and plateau at a higher accuracy.
 
-![image](https://github.com/MadsBirch/bal/assets/23211921/766c2d82-180c-4ebd-b705-cc6fe9ff16c1)
-*Fig. 1 - MNIST test accuracy as a function of number of samples quired from the unlaballed pool. Three acquisition functions were implemented; random, BALD and BatchBALD.*
+![Fig. 1 - MNIST test accuracy as a function of number of samples quired from the unlaballed pool. Three acquisition functions were implemented; random, BALD and BatchBALD.](https://github.com/MadsBirch/bal/assets/23211921/766c2d82-180c-4ebd-b705-cc6fe9ff16c1)
 
 ### BALD vs BatchBALD
 Batch aware methods are necessary as Deep Neural Networks are expensive to train, meaning that adding only one data point to the training set does not justify re-training of the model considering the small amount of additional information gained from a single data point. Non batch aware acquisition functions can be and are used to query multiple data points, however this is not optimal, since the highest ranking data points are often similar. Batch aware methods such as BatchBALD takes this correlation between the data points in the query set, maximising the diversity of the queried samples.
