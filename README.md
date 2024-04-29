@@ -21,7 +21,7 @@ Investigating the sampling behavior of each acquisition function it is clear tha
 
 
 ![image](https://github.com/MadsBirch/bal/assets/23211921/fde592d2-9388-4067-b726-78a218fe127e)
-
+<figcaption>Fig. 1 - TwoMoons decision boundaries for each acquisition strategy.</figcaption>
 
 ### Understanding BALD
 BALD:
@@ -29,7 +29,7 @@ BALD:
 - The second term down-weigh samples that are inherently ambiguous. 
 
 ![image](https://github.com/MadsBirch/bal/assets/23211921/52149802-b0af-4ce9-bfec-de47177a6f98)
-
+<figcaption>Fig. 2 - The BALD acquisition function terms visualized. </figcaption>
 
 
 ### MNIST Learning Curves
@@ -43,7 +43,7 @@ Findings:
 - AL learn faster and plateau at a higher accuracy.
 
 ![image](https://github.com/MadsBirch/bal/assets/23211921/766c2d82-180c-4ebd-b705-cc6fe9ff16c1)
-<figcaption>Fig. 1 - MNIST test accuracy as a function of number of samples quired from the unlaballed pool. Three acquisition functions were implemented; random, BALD and BatchBALD.</figcaption>
+<figcaption>Fig. 3 - MNIST test accuracy as a function of number of samples quired from the unlaballed pool. Three acquisition functions were implemented; random, BALD and BatchBALD.</figcaption>
                                                                                                                                                                                  
                                                                                                                                                                                  
 ### BALD vs BatchBALD
@@ -57,14 +57,14 @@ Motivation for BatchBALD:
   
 
 ![Screenshot 2024-04-29 at 11 18 41](https://github.com/MadsBirch/bal/assets/23211921/af2e1612-af35-4b59-89f1-e64edf77aba4)
-
+<figcaption>Fig. 4 - BALD vs BatchBALD information content.</figcaption>
 
 Results:
 - No difference between BALD and BatchBALD was found, but the batch size was small, 4.
 - A larger batch size would likely change the results, but increasing the batch size increases the memory footprint.
 
 ![image](https://github.com/MadsBirch/bal/assets/23211921/40ab8499-3382-42f5-9235-ab974d709036)
-
+<figcaption>Fig. 5 - BALD vs BatchBALD learning curves. </figcaption>
 
 ## Conclusion
 What was found?
