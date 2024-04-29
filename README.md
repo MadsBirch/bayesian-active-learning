@@ -23,6 +23,42 @@ Investigating the sampling behavior of each acquisition function it is clear tha
 ![image](https://github.com/MadsBirch/bal/assets/23211921/fde592d2-9388-4067-b726-78a218fe127e)
 
 
+### Understanding BALD
+BALD:
+- The first term selects samples with high predictive uncertainty. 
+- The second term down-weigh samples that are inherently ambiguous. 
+
+![image](https://github.com/MadsBirch/bal/assets/23211921/52149802-b0af-4ce9-bfec-de47177a6f98)
+
+
+
+### MNIST Learning Curves
+
+Setup:
+- Monte Carlo Dropout (T=10)
+- Query batch size of 100.
+
+Findings:
+- AL learn faster and plateau at a higher accuracy.
+
+![image](https://github.com/MadsBirch/bal/assets/23211921/766c2d82-180c-4ebd-b705-cc6fe9ff16c1)
+
+
+### BALD vs BatchBALD
+Motivation for BatchBALD:
+- Deep Neural Networks are computationally expensive to train.
+- Ensuring batch diversity to maximize information gain.
+
+![Screenshot 2024-04-29 at 11 18 41](https://github.com/MadsBirch/bal/assets/23211921/af2e1612-af35-4b59-89f1-e64edf77aba4)
+
+## Conclusion
+What was found?
+1. Active Learning leads to faster learning and higher accuracy.
+2. The desired sampling behavior was confirmed in 2D.
+3. BALD did not lead to faster learning than margin or entropy sampling, but came at a computional cost.
+4. BatchBALD was not preffered over BALD for a batch size of 4.
+
+
 Project Organization
 ------------
 
