@@ -14,7 +14,9 @@ Bayesian Active Learning
 
 ## Experiments and Results
 ### TwoMoons Decision Boundaries
-Investigating the sampling behavior of each acquisition function it is clear that:
+First we will look at a 2D dataset, the TwoMoons dataset so we can investigate the sampling behavior of the different acquiistion functions and understand the differences better.
+
+Investigating the sampling behavior of each acquisition function in 2D it is clear that:
 - Margin sampling selects instances where the decision margin (difference between the first most probable and second most probable predicted labels) is smallest. In the context of the TwoMoons dataset, margin sampling is likely to focus on instances near the decision boundary between the two moons. This is because instances near the boundary are those where the model is most uncertain between the two classes, resulting in smaller margins.
 - Entropy samples where the entropy is highest, which is highest when the predictive distribution is uniform. This is most likely to happen along the decision boundary.
 - BALD is also more likely to sample along the decision boundary (frist term), but due to the second term, samples that the model agree are confusing are given a large negative weight.
