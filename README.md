@@ -12,9 +12,15 @@ Bayesian Active Learning
 - Consider the uncertainty w.r.t. the model parameters.
 
 
-TwoMoons Decision Boundaries
-![image](https://github.com/MadsBirch/bal/assets/23211921/fde592d2-9388-4067-b726-78a218fe127e)
+## Experiments and Results
+### TwoMoons Decision Boundaries
+Investigating the sampling behavior of each acquisition function it is clear that:
+- Margin sampling selects instances where the decision margin (difference between the first most probable and second most probable predicted labels) is smallest. In the context of the TwoMoons dataset, margin sampling is likely to focus on instances near the decision boundary between the two moons. This is because instances near the boundary are those where the model is most uncertain between the two classes, resulting in smaller margins.
+- Entropy samples where the entropy is highest, which is highest when the predictive distribution is uniform. This is most likely to happen along the decision boundary.
+- BALD is also more likely to sample along the decision boundary (frist term), but due to the second term, samples that the model agree are confusing are given a large negative weight.
 
+
+![image](https://github.com/MadsBirch/bal/assets/23211921/fde592d2-9388-4067-b726-78a218fe127e)
 
 
 Project Organization
