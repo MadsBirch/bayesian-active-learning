@@ -1,7 +1,21 @@
-bal
+Bayesian Active Learning
 ==============================
+Modern Deep Neural Networks need large amount of data to perform well but annotating data is expensive. Active Learning presents a solution by selecting the most informative data samples to annotate.
 
-New workspace for BAL project from 4th semester
+## Motivation
+- Annotating data is expensive. 
+- Modern deep neural networks are data hungry.
+- Sample datapoints that maximize information gain w.r.t. model parameters.
+- Reduce cost of training ML models.
+
+Bayesian Active Learning
+- Consider the uncertainty w.r.t. the model parameters.
+
+
+TwoMoons Decision Boundaries
+![image](https://github.com/MadsBirch/bal/assets/23211921/fde592d2-9388-4067-b726-78a218fe127e)
+
+
 
 Project Organization
 ------------
