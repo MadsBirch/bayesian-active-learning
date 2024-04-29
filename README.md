@@ -33,6 +33,7 @@ BALD:
 
 
 ### MNIST Learning Curves
+The goal of this project was to replicate the results of the paper Deep Bayesian Active Learning with Image Data (https://arxiv.org/abs/1703.02910). Similar to Gal et al 2017, I found that implementing an active learning framework, selecting the most informative data points, outperformed a standard random sampling strategy (Fig. 1). The BALD acquisition function assigns the highest scores to data points which are most informative w.r.t. the model parameters.
 
 Setup:
 - Monte Carlo Dropout (T=10)
@@ -42,7 +43,7 @@ Findings:
 - AL learn faster and plateau at a higher accuracy.
 
 ![image](https://github.com/MadsBirch/bal/assets/23211921/766c2d82-180c-4ebd-b705-cc6fe9ff16c1)
-
+*Fig. 1 - MNIST test accuracy as a function of number of samples quired from the unlaballed pool. Three acquisition functions were implemented; random, BALD and BatchBALD.*
 
 ### BALD vs BatchBALD
 Batch aware methods are necessary as Deep Neural Networks are expensive to train, meaning that adding only one data point to the training set does not justify re-training of the model considering the small amount of additional information gained from a single data point. Non batch aware acquisition functions can be and are used to query multiple data points, however this is not optimal, since the highest ranking data points are often similar. Batch aware methods such as BatchBALD takes this correlation between the data points in the query set, maximising the diversity of the queried samples.
