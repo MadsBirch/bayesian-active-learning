@@ -45,11 +45,24 @@ Findings:
 
 
 ### BALD vs BatchBALD
+Batch aware methods are necessary as Deep Neural Networks are expensive to train, meaning that adding only one data point to the training set does not justify re-training of the model considering the small amount of additional information gained from a single data point. Non batch aware acquisition functions can be and are used to query multiple data points, however this is not optimal, since the highest ranking data points are often similar. Batch aware methods such as BatchBALD takes this correlation between the data points in the query set, maximising the diversity of the queried samples.
+
 Motivation for BatchBALD:
 - Deep Neural Networks are computationally expensive to train.
 - Ensuring batch diversity to maximize information gain.
+- BALD for multiple samples sums up the mutual information for each sample, which means that the overlaps are doulbe counted.
+- BatchBALD conisders the joint mutual iniormation.
+  
 
 ![Screenshot 2024-04-29 at 11 18 41](https://github.com/MadsBirch/bal/assets/23211921/af2e1612-af35-4b59-89f1-e64edf77aba4)
+
+
+Results:
+- No difference between BALD and BatchBALD was found, but the batch size was small, 4.
+- A larger batch size would likely change the results, but increasing the batch size increases the memory footprint.
+
+![image](https://github.com/MadsBirch/bal/assets/23211921/40ab8499-3382-42f5-9235-ab974d709036)
+
 
 ## Conclusion
 What was found?
